@@ -60,14 +60,31 @@ class SelectorContainer(py.QFrame):
         label_widget, combo_widget = self._extract_components(selector_widget)
         
         if label_widget and combo_widget:
+            # Rimuovi i widget dal layout originale del selector (se esiste)
+            if label_widget.parent():
+                original_layout = label_widget.parent().layout()
+                if original_layout:
+                    original_layout.removeWidget(label_widget)
+            
+            if combo_widget.parent():
+                original_layout = combo_widget.parent().layout()
+                if original_layout:
+                    original_layout.removeWidget(combo_widget)
+            
+            # Imposta il parent dei componenti al nostro container
+            label_widget.setParent(self)
+            combo_widget.setParent(self)
+            
             # Aggiungi label alla prima riga
             self.grid_layout.addWidget(label_widget, 0, column_index)
             
             # Aggiungi combobox alla seconda riga
             self.grid_layout.addWidget(combo_widget, 1, column_index)
             
-            # Nascondi il selector originale (ora i suoi componenti sono nel nostro layout)
-            selector_widget.hide()
+            # Mantieni visibile il selector originale ma senza layout
+            # Questo preserva i segnali e le funzionalità
+            selector_widget.setFixedSize(0, 0)  # Rendilo invisibile senza hide()
+            selector_widget.move(-1000, -1000)  # Spostalo fuori schermo
             
             # Salva il riferimento
             self.selectors.append({
@@ -161,9 +178,14 @@ class SelectorContainer(py.QFrame):
     def update_selector_visibility(self):
         """Aggiorna la visibilità dei selector in base al contenuto"""
         for selector_info in self.selectors:
-            # Assicurati che i componenti siano visibili
+            # Assicurati che i componenti nel grid siano visibili
             selector_info['label'].show()
             selector_info['combo'].show()
             
-            # Il selector originale rimane nascosto
-            selector_info['widget'].hide()
+            # Il selector originale rimane nascosto ma funzionale
+            # Non chiamare hide() per preservare i segnali
+            selector_info['widget'].setFixedSize(0, 0)
+            
+        # Forza l'aggiornamento del layout
+        self.grid_layout.update()
+        self.update()

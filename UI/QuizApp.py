@@ -20,6 +20,12 @@ class QuizApp(py.QWidget):
     def __init__(self):
         super().__init__()
         
+        # Flag to track initialization state
+        self.is_initializing = True
+        
+        # Flag to track question loading state
+        self.is_loading_questions = False
+        
         # Language configuration - ora usa il modello separato
         self.language_model = LanguageModel()
         self.selected_language = self.language_model.selected_language
@@ -99,40 +105,43 @@ class QuizApp(py.QWidget):
         self.language_selector, self.language_controller = LanguageUIFactory.create_language_selector_with_model(
             self.language_model, self
         )
-        # Connetti il segnale di cambio lingua
-        self.language_selector.language_changed.connect(self.on_language_changed)
-        # Aggiungi alla colonna 0 del container
+        # Aggiungi alla colonna 0 del container PRIMA di connettere i segnali
         self.selector_container.add_selector(self.language_selector, 0)
+        # Connetti il segnale di cambio lingua DOPO l'aggiunta al container
+        self.language_selector.language_changed.connect(self.on_language_changed)
 
         # Category selector - usa il componente separato
         self.category_selector = CategoryUIFactory.create_category_selector_with_model(
             self.category_model, self
         )
-        # Connetti il segnale di cambio categoria
-        self.category_selector.category_changed.connect(self.on_category_changed)
-        # Aggiungi alla colonna 1 del container
+        # Aggiungi alla colonna 1 del container PRIMA di connettere i segnali
         self.selector_container.add_selector(self.category_selector, 1)
+        # Connetti il segnale di cambio categoria DOPO l'aggiunta al container
+        self.category_selector.category_changed.connect(self.on_category_changed)
 
         # Difficulty selector - usa il componente separato
         self.difficulty_selector = DifficultyUIFactory.create_difficulty_selector_with_model(
             self.difficulty_model, self
         )
-        # Connetti il segnale di cambio difficoltà
-        self.difficulty_selector.difficulty_changed.connect(self.on_difficulty_changed)
-        # Aggiungi alla colonna 2 del container
+        # Aggiungi alla colonna 2 del container PRIMA di connettere i segnali
         self.selector_container.add_selector(self.difficulty_selector, 2)
+        # Connetti il segnale di cambio difficoltà DOPO l'aggiunta al container
+        self.difficulty_selector.difficulty_changed.connect(self.on_difficulty_changed)
 
         # Type selector - usa il componente separato
         self.type_selector = TypeUIFactory.create_type_selector_with_model(
             self.type_model, self
         )
-        # Connetti il segnale di cambio tipo
-        self.type_selector.type_changed.connect(self.on_type_changed)
-        # Aggiungi alla colonna 3 del container
+        # Aggiungi alla colonna 3 del container PRIMA di connettere i segnali
         self.selector_container.add_selector(self.type_selector, 3)
+        # Connetti il segnale di cambio tipo DOPO l'aggiunta al container
+        self.type_selector.type_changed.connect(self.on_type_changed)
         
         # Aggiungi il container al layout principale
         self.layout.addWidget(self.selector_container)
+        
+        # Forza la sincronizzazione iniziale dei modelli con i selector
+        self._sync_models_to_selectors()
 
         # Question area
         self.question_frame = py.QFrame()
@@ -239,12 +248,45 @@ class QuizApp(py.QWidget):
         
         # Force layout update and ensure visibility
         self.ensure_selectors_visible()
+        
+        # NOTE: is_initializing flag will be set to False when first questions are loaded
 
     def ensure_selectors_visible(self):
         """Ensures all selectors are visible in the unified container"""
         if hasattr(self, 'selector_container'):
             self.selector_container.show()
             self.selector_container.update_selector_visibility()
+    
+    def _sync_models_to_selectors(self):
+        """Sincronizza i valori dei modelli con i selector per assicurare coerenza"""
+        print("Synchronizing models to selectors...")
+        
+        # Forza l'aggiornamento delle selezioni dei selector per riflettere i modelli
+        try:
+            # Language selector sync
+            if hasattr(self, 'language_selector') and hasattr(self.language_selector, '_update_selection'):
+                self.language_selector._update_selection()
+            
+            # Category selector sync - assicura che sia popolato e sincronizzato
+            if hasattr(self, 'category_selector'):
+                # Se il category selector ha il metodo di sync, usalo
+                if hasattr(self.category_selector, '_populate_category_combo'):
+                    # Permetti al selector di caricare le categorie se necessario
+                    pass
+            
+            # Difficulty selector sync
+            if hasattr(self, 'difficulty_selector') and hasattr(self.difficulty_selector, '_populate_difficulty_combo'):
+                self.difficulty_selector._populate_difficulty_combo()
+            
+            # Type selector sync
+            if hasattr(self, 'type_selector') and hasattr(self.type_selector, '_populate_type_combo'):
+                self.type_selector._populate_type_combo()
+                
+            print("Model synchronization completed")
+            
+        except Exception as e:
+            print(f"Error during model synchronization: {e}")
+            # Continua comunque, la sincronizzazione non è critica
 
     def _hide_all_widgets(self, hide_loading=True):
         """Hide all UI widgets except the selectors
@@ -424,6 +466,11 @@ class QuizApp(py.QWidget):
 
     def on_language_changed(self, old_language: str, new_language: str):
         """Handle language change from the LanguageSelector component"""
+        # Skip processing during initialization or question loading
+        if self.is_initializing or self.is_loading_questions:
+            print(f"Skipping language change during loading: {old_language} -> {new_language}")
+            return
+            
         if new_language != self.selected_language:
             print(f"Language changing from {old_language} to {new_language}")
             self.selected_language = new_language
@@ -464,6 +511,11 @@ class QuizApp(py.QWidget):
 
     def on_category_changed(self, category_id: int):
         """Handle category change from the CategorySelector component"""
+        # Skip processing during initialization or question loading
+        if self.is_initializing or self.is_loading_questions:
+            print(f"Skipping category change during loading: {category_id}")
+            return
+            
         # Get category name from model for logging
         category_name = "Unknown"
         try:
@@ -487,6 +539,11 @@ class QuizApp(py.QWidget):
 
     def on_difficulty_changed(self, difficulty_value: str):
         """Handle difficulty change from the DifficultySelector component"""
+        # Skip processing during initialization or question loading
+        if self.is_initializing or self.is_loading_questions:
+            print(f"Skipping difficulty change during loading: {difficulty_value}")
+            return
+            
         difficulty_name = self.difficulty_model.get_difficulty_name(difficulty_value)
         print(f"Difficulty selected: {difficulty_name} ({difficulty_value})")
         # Reset quiz with new difficulty
@@ -500,8 +557,15 @@ class QuizApp(py.QWidget):
 
     def on_type_changed(self, type_value: str):
         """Handle type change from the TypeSelector component"""
+        # Skip processing during initialization or question loading
+        if self.is_initializing or self.is_loading_questions:
+            print(f"Skipping type change during loading: {type_value}")
+            return
+            
         type_name = self.type_model.get_type_name(type_value)
         print(f"Type selected: {type_name} ({type_value})")
+        # Reset quiz with new type
+        self._reset_quiz_for_parameter_change()
         # Reset quiz with new type
         self._reset_quiz_for_parameter_change()
 
@@ -564,6 +628,7 @@ class QuizApp(py.QWidget):
                 self.worker = None
             
             self.is_fetching = True
+            self.is_loading_questions = True  # Block selector changes during loading
             
             # Get all selected parameters from models
             selected_category_id = self.category_model.get_selected_category_id() if hasattr(self, 'category_model') else None
@@ -574,6 +639,8 @@ class QuizApp(py.QWidget):
             print(f"  - Language: '{self.selected_language}'")
             print(f"  - Category ID: {selected_category_id}")
             print(f"  - Difficulty: {selected_difficulty}")
+            print(f"  - Type: {selected_type}")
+            print("Blocking selector changes during question loading...")
             print(f"  - Type: {selected_type}")
             
             self.worker = QuestionWorker(count, self.selected_language, selected_category_id, selected_difficulty, selected_type)
@@ -641,6 +708,16 @@ class QuizApp(py.QWidget):
             
             # Ensure all selectors remain visible
             self.ensure_selectors_visible()
+            
+            # Initialization completed - enable selector change handling
+            if self.is_initializing:
+                self.is_initializing = False
+                print("QuizApp initialization completed - selectors now responsive")
+            
+            # Questions loaded - re-enable selector changes
+            if self.is_loading_questions:
+                self.is_loading_questions = False
+                print("Question loading completed - selectors now responsive")
         
         if self.index == 0 and len(self.questions) > 0 or self.call_load_question_again:
             self.call_load_question_again = False
