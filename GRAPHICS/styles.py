@@ -70,6 +70,18 @@ class AppStyles:
         }
     """
     
+    # Unified selector container for grid layout (2x4: labels top, controls bottom)
+    SELECTOR_CONTAINER = """
+        QFrame {
+            background-color: white;                        /* Clean white background */
+            border-radius: 8px;                            /* Slightly more rounded corners */
+            padding: 15px;                                 /* Generous internal padding */
+            border: 1px solid #e0e0e0;                     /* Subtle border */
+            margin-bottom: 20px;                           /* More spacing from content below */
+            min-height: 120px;                             /* Minimum height for 2 rows */
+        }
+    """
+    
     # Label styles for selector components
     LANGUAGE_LABEL = """
         font-size: 14px;                                   /* Readable font size */

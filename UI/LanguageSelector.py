@@ -30,19 +30,12 @@ class LanguageSelector(py.QFrame):
     
     def _setup_ui(self):
         """Configura l'interfaccia utente del selettore lingua"""
-        # Stessa configurazione di DifficultySelector per rendering identico
-        self.setFrameStyle(py.QFrame.Box)
-        self.setStyleSheet(AppStyles.LANGUAGE_CONTAINER)
-        
-        # Layout principale con valori semplici come DifficultySelector
-        layout = py.QHBoxLayout(self)
-        layout.setContentsMargins(10, 5, 10, 5)
-        layout.setSpacing(10)
+        # Configurazione semplificata per SelectorContainer
+        # Non impostiamo frame style o layout - sarà gestito dal container
         
         # Label per il testo "Lingua:"
         self.language_label = py.QLabel()
         self.language_label.setStyleSheet(AppStyles.LANGUAGE_LABEL)
-        layout.addWidget(self.language_label)
         
         # Aggiorna il testo della label con la traduzione corretta
         self._update_label_text()
@@ -51,7 +44,6 @@ class LanguageSelector(py.QFrame):
         self.language_combo = py.QComboBox()
         self.language_combo.setStyleSheet(AppStyles.LANGUAGE_COMBO)
         self.language_combo.currentTextChanged.connect(self._on_combo_selection_changed)
-        layout.addWidget(self.language_combo)
         
         # Popola la combo box con le lingue disponibili
         self._populate_language_combo()

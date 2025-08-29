@@ -29,24 +29,17 @@ class DifficultySelector(py.QFrame):
     
     def _init_ui(self):
         """Inizializza l'interfaccia utente"""
-        self.setFrameStyle(py.QFrame.Box)
-        self.setStyleSheet(AppStyles.LANGUAGE_CONTAINER)
-        
-        # Layout principale
-        layout = py.QHBoxLayout(self)
-        layout.setContentsMargins(10, 5, 10, 5)
-        layout.setSpacing(10)
+        # Configurazione semplificata per SelectorContainer
+        # Non impostiamo frame style o layout - sarà gestito dal container
         
         # Label
         self.difficulty_label = py.QLabel()
         self.difficulty_label.setStyleSheet(AppStyles.LANGUAGE_LABEL)
-        layout.addWidget(self.difficulty_label)
         
         # Combo box per difficoltà
         self.difficulty_combo = py.QComboBox()
         self.difficulty_combo.setStyleSheet(AppStyles.LANGUAGE_COMBO)
         self.difficulty_combo.currentTextChanged.connect(self._on_difficulty_selected)
-        layout.addWidget(self.difficulty_combo)
         
         # Imposta testi iniziali
         self._update_texts()

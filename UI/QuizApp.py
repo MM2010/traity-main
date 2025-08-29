@@ -9,6 +9,7 @@ from CLASSES.DifficultyUIFactory import DifficultyUIFactory
 from CLASSES.DifficultyModel import DifficultyModel
 from CLASSES.TypeUIFactory import TypeUIFactory
 from CLASSES.TypeModel import TypeModel
+from UI.SelectorContainer import SelectorContainer
 from typing import Optional
 
 import PyQt5.QtWidgets as py
@@ -91,49 +92,47 @@ class QuizApp(py.QWidget):
         self.layout.setContentsMargins(*AppConstants.MAIN_LAYOUT_MARGINS)  # Margini fissi
         self.setLayout(self.layout)
 
+        # Selector container unificato - organizza tutti i selector in griglia 2x4
+        self.selector_container = SelectorContainer(self)
+        
         # Language selector - ora usa il componente separato
         self.language_selector, self.language_controller = LanguageUIFactory.create_language_selector_with_model(
             self.language_model, self
         )
-        
         # Connetti il segnale di cambio lingua
         self.language_selector.language_changed.connect(self.on_language_changed)
-        
-        # Aggiungi il selettore al layout
-        self.layout.addWidget(self.language_selector)
+        # Aggiungi alla colonna 0 del container
+        self.selector_container.add_selector(self.language_selector, 0)
 
         # Category selector - usa il componente separato
         self.category_selector = CategoryUIFactory.create_category_selector_with_model(
             self.category_model, self
         )
-        
         # Connetti il segnale di cambio categoria
         self.category_selector.category_changed.connect(self.on_category_changed)
-        
-        # Aggiungi il selettore al layout
-        self.layout.addWidget(self.category_selector)
+        # Aggiungi alla colonna 1 del container
+        self.selector_container.add_selector(self.category_selector, 1)
 
         # Difficulty selector - usa il componente separato
         self.difficulty_selector = DifficultyUIFactory.create_difficulty_selector_with_model(
             self.difficulty_model, self
         )
-        
         # Connetti il segnale di cambio difficoltà
         self.difficulty_selector.difficulty_changed.connect(self.on_difficulty_changed)
-        
-        # Aggiungi il selettore al layout
-        self.layout.addWidget(self.difficulty_selector)
+        # Aggiungi alla colonna 2 del container
+        self.selector_container.add_selector(self.difficulty_selector, 2)
 
         # Type selector - usa il componente separato
         self.type_selector = TypeUIFactory.create_type_selector_with_model(
             self.type_model, self
         )
-        
         # Connetti il segnale di cambio tipo
         self.type_selector.type_changed.connect(self.on_type_changed)
+        # Aggiungi alla colonna 3 del container
+        self.selector_container.add_selector(self.type_selector, 3)
         
-        # Aggiungi il selettore al layout
-        self.layout.addWidget(self.type_selector)
+        # Aggiungi il container al layout principale
+        self.layout.addWidget(self.selector_container)
 
         # Question area
         self.question_frame = py.QFrame()
@@ -241,36 +240,11 @@ class QuizApp(py.QWidget):
         # Force layout update and ensure visibility
         self.ensure_selectors_visible()
 
-    def ensure_language_selector_visible(self):
-        """Ensures the language selector is always visible and properly sized"""
-        # Assicura semplicemente che sia visibile (non serve più ensure_visibility)
-        self.language_selector.show()
-
-    def ensure_category_selector_visible(self):
-        """Ensures the category selector is always visible and properly sized"""
-        # Usa il metodo del componente CategorySelector
-        if hasattr(self, 'category_selector'):
-            self.category_selector.show()
-            self.category_selector.update()
-
-    def ensure_difficulty_selector_visible(self):
-        """Ensures the difficulty selector is always visible and properly sized"""
-        if hasattr(self, 'difficulty_selector'):
-            self.difficulty_selector.show()
-            self.difficulty_selector.update()
-
-    def ensure_type_selector_visible(self):
-        """Ensures the type selector is always visible and properly sized"""
-        if hasattr(self, 'type_selector'):
-            self.type_selector.show()
-            self.type_selector.update()
-
     def ensure_selectors_visible(self):
-        """Ensures all selectors are visible"""
-        self.ensure_language_selector_visible()
-        self.ensure_category_selector_visible()
-        self.ensure_difficulty_selector_visible()
-        self.ensure_type_selector_visible()
+        """Ensures all selectors are visible in the unified container"""
+        if hasattr(self, 'selector_container'):
+            self.selector_container.show()
+            self.selector_container.update_selector_visibility()
 
     def _hide_all_widgets(self, hide_loading=True):
         """Hide all UI widgets except the selectors
@@ -710,8 +684,8 @@ class QuizApp(py.QWidget):
         self.stats_container.show()  # Ensure stats are visible during game
         self.next_btn.show()
         self.previous_btn.show()
-        # Ensure language selector remains visible
-        self.ensure_language_selector_visible()
+        # Ensure selectors remain visible
+        self.ensure_selectors_visible()
 
         q = self.questions[self.index]["question"]
         options = self.questions[self.index]["options"]
@@ -757,8 +731,8 @@ class QuizApp(py.QWidget):
                 btn.show()
                 btn.setEnabled(True)
         
-        # Final check to ensure language selector remains visible and properly sized
-        self.ensure_language_selector_visible()
+        # Final check to ensure selectors remain visible and properly sized
+        self.ensure_selectors_visible()
 
     def next_question(self):
         """Navigate to the next question"""
@@ -784,7 +758,7 @@ class QuizApp(py.QWidget):
         self.load_question()
         
         # Ensure language selector remains properly visible after question change
-        self.ensure_language_selector_visible()
+        self.ensure_selectors_visible()
     
     def previous_question(self):
         """Navigate to the previous question"""
@@ -797,7 +771,7 @@ class QuizApp(py.QWidget):
             self.load_question()
             
             # Ensure language selector remains properly visible
-            self.ensure_language_selector_visible()
+            self.ensure_selectors_visible()
     
     def skip_to_next_unanswered(self):
         """Skip directly to the next unanswered question"""
@@ -818,7 +792,7 @@ class QuizApp(py.QWidget):
             self.load_question()
             
             # Ensure language selector remains properly visible
-            self.ensure_language_selector_visible()
+            self.ensure_selectors_visible()
         # Se la domanda non esiste ancora, non fare nulla
     
     def _restore_question_state(self):
