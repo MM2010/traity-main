@@ -10,9 +10,11 @@ It handles:
 - HTML entity decoding and text cleanup
 - Answer option shuffling for randomization
 - Error handling and graceful fallbacks
+- Rate limiting to prevent HTTP 429 errors
 
 Key Features:
 - Asynchronous operation to prevent UI blocking
+- Rate limiting with exponential backoff for API stability
 - Parallel translation for improved performance
 - Robust error handling with fallback to English
 - Signal-based communication with UI thread
@@ -32,6 +34,7 @@ Architecture:
 
 import requests                                          # HTTP requests for API calls
 from PyQt5.QtCore import QThread, pyqtSignal           # Qt threading and signals
+import time                                             # Time delays for rate limiting
 
 from deep_translator import GoogleTranslator           # Translation service
 from concurrent.futures import ThreadPoolExecutor, as_completed  # Parallel processing
@@ -50,19 +53,23 @@ class QuestionWorker(QThread):
     network operations and translation processing.
     
     Key Responsibilities:
-    - Fetch questions from OpenTrivia Database API
+    - Fetch questions from OpenTrivia Database API with rate limiting
     - Translate question content to target language
     - Decode HTML entities and clean text
     - Shuffle answer options for randomization
-    - Handle errors gracefully with fallbacks
+    - Handle HTTP 429 errors with exponential backoff
     - Emit signals when processing is complete
     
-    The worker uses parallel processing for translation to optimize performance
-    when handling multiple questions simultaneously.
+    The worker uses parallel processing for translation and implements
+    rate limiting to prevent overwhelming the OpenTDB API.
     """
     
     # Signal emitted when questions are ready - passes list of translated questions
     question_ready = pyqtSignal(list)
+    
+    # Class-level rate limiting variables
+    last_request_time = 0
+    min_request_interval = 1.0  # Minimum 1 second between API requests
 
     def __init__(self, count=5, target_language='it'):
         """
@@ -144,9 +151,38 @@ class QuestionWorker(QThread):
         url = f"https://opentdb.com/api.php?amount={self.count}&category=9&difficulty=medium&type=multiple"
         
         try:
+            # Rate limiting: ensure minimum interval between requests
+            current_time = time.time()
+            time_since_last = current_time - QuestionWorker.last_request_time
+            
+            if time_since_last < QuestionWorker.min_request_interval:
+                sleep_time = QuestionWorker.min_request_interval - time_since_last
+                print(f"Rate limiting: waiting {sleep_time:.1f}s before API request...")
+                time.sleep(sleep_time)
+            
             print(f"Fetching questions from API...")
-            response = requests.get(url)
+            QuestionWorker.last_request_time = time.time()
+            
+            response = requests.get(url, timeout=10)
             print(f"Response status: {response.status_code}")
+            
+            # Handle rate limiting with exponential backoff
+            if response.status_code == 429:
+                print("API rate limit exceeded (429). Implementing backoff...")
+                for attempt in range(3):  # Try up to 3 times
+                    wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                    print(f"Waiting {wait_time}s before retry attempt {attempt + 1}/3...")
+                    time.sleep(wait_time)
+                    
+                    response = requests.get(url, timeout=10)
+                    print(f"Retry response status: {response.status_code}")
+                    
+                    if response.status_code == 200:
+                        break
+                else:
+                    print("All retry attempts failed. Using fallback...")
+                    self.question_ready.emit([])  # Emit empty list as fallback
+                    return
             
             if response.status_code == 200:
                 # Parse JSON response and extract question data
@@ -219,10 +255,22 @@ class QuestionWorker(QThread):
                     })
                 
                 print(f"Prepared {len(batch)} questions")
+            else:
+                print(f"API request failed with status {response.status_code}")
+                self.question_ready.emit([])  # Emit empty list on failure
+                return
+                
+        except requests.exceptions.Timeout:
+            print("API request timed out. Please check your internet connection.")
+            self.question_ready.emit([])
+        except requests.exceptions.ConnectionError:
+            print("Connection error. Please check your internet connection.")
+            self.question_ready.emit([])
         except Exception as e:
             print(f"Worker error {e}")
             import traceback
             traceback.print_exc()
+            self.question_ready.emit([])  # Emit empty list on unexpected errors
         
         print("Emitting signal...")
         self.question_ready.emit(batch)

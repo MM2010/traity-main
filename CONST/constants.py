@@ -63,8 +63,8 @@ class AppConstants:
     
     # Question management - controls quiz flow and performance
     DEFAULT_QUESTION_COUNT = 6      # Initial number of questions to load
-    REFETCH_THRESHOLD = 5           # Remaining questions threshold for auto-refetch
-    REFETCH_COUNT = 2               # Number of additional questions to fetch
+    REFETCH_THRESHOLD = 2           # Remaining questions threshold for auto-refetch (reduced to avoid 429)
+    REFETCH_COUNT = 5               # Number of additional questions to fetch (increased for efficiency)
     
     # Application icon path - relative to project root
     APP_ICON_PATH = '../assets/quiz_icon.png'
