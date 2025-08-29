@@ -243,8 +243,8 @@ class QuizApp(py.QWidget):
 
     def ensure_language_selector_visible(self):
         """Ensures the language selector is always visible and properly sized"""
-        # Usa il metodo del componente LanguageSelector
-        self.language_selector.ensure_visibility()
+        # Assicura semplicemente che sia visibile (non serve più ensure_visibility)
+        self.language_selector.show()
 
     def ensure_category_selector_visible(self):
         """Ensures the category selector is always visible and properly sized"""

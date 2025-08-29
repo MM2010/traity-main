@@ -36,8 +36,8 @@ Dependencies:
 from QuestionWorker import QuestionWorker                # Async question loading
 from GRAPHICS.styles import AppStyles                    # Centralized styling
 from CONST.constants import AppConstants                 # Configuration constants
-from LanguageUI import LanguageUIFactory                # UI component factory
-from Language import LanguageModel                      # Language management
+from CLASSES.LanguageUIFactory import LanguageUIFactory    # UI component factory
+from CLASSES.LanguageModel import LanguageModel         # Language management
 
 import PyQt5.QtWidgets as py                            # GUI components
 from PyQt5.QtCore import Qt                             # Qt core functionality
@@ -270,8 +270,8 @@ class QuizApp(py.QWidget):
 
     def ensure_language_selector_visible(self):
         """Ensures the language selector is always visible and properly sized"""
-        # Usa il metodo del componente LanguageSelector
-        self.language_selector.ensure_visibility()
+        # Assicura semplicemente che sia visibile (non serve più ensure_visibility)
+        self.language_selector.show()
     
     def _update_window_title(self):
         """Aggiorna il titolo della finestra"""

@@ -1,1 +1,207 @@
-/__pycache__
+# ================================================================
+# .gitignore - Git Ignore Configuration for Traity Quiz App
+# ================================================================
+# 
+# This file specifies which files and directories should be ignored
+# by Git version control to keep the repository clean and avoid
+# committing unnecessary or sensitive files.
+#
+# Categories covered:
+# - Python cache and compiled files
+# - IDE and editor configurations
+# - Operating system files
+# - Application-specific temporary files
+# - Virtual environments and dependencies
+# ================================================================
+
+# ========================================
+# PYTHON CACHE AND COMPILED FILES
+# ========================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*/__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller files
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations (compiled)
+*.mo
+*.pot
+
+# ========================================
+# VIRTUAL ENVIRONMENTS
+# ========================================
+
+# Virtual environment directories
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ========================================
+# IDE AND EDITOR CONFIGURATIONS
+# ========================================
+
+# Visual Studio Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# PyCharm
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Vim
+*.swp
+*.swo
+*~
+
+# ========================================
+# OPERATING SYSTEM FILES
+# ========================================
+
+# Windows
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ========================================
+# APPLICATION-SPECIFIC FILES
+# ========================================
+
+# Log files
+*.log
+debug.txt
+error.log
+
+# Temporary data files
+quiz_data.json
+user_preferences.json
+temp_questions/
+cache/
+
+# API keys and sensitive data
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+api_keys.json
+secrets.json
+
+# Translation cache
+translations_cache/
+temp_translations/
+
+# Generated files
+generated_icons/
+temp_images/
+
+# ========================================
+# BACKUP AND TEMPORARY FILES
+# ========================================
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+*.tmp
+
+# Archive files
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# ========================================
+# DEVELOPMENT AND TESTING
+# ========================================
+
+# Test files
+test.db
+test.sqlite
+test_*.db
+mock_data/
+test_fixtures/
+
+# Profiling
+*.prof
+*.pstats
+
+# Documentation build
+docs/_build/
+site/

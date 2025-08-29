@@ -1,6 +1,3 @@
-# LanguageUIFactory.py
-# Factory per creare componenti UI relativi alle lingue
-
 from typing import Tuple
 from CLASSES.LanguageModel import LanguageModel
 from CLASSES.LanguageController import LanguageController
@@ -12,15 +9,17 @@ class LanguageUIFactory:
     
     @staticmethod
     def create_language_selector(parent=None) -> Tuple[LanguageSelector, LanguageController]:
-        """Crea un selettore di lingua completo con modello e controller
+        """Crea un selettore di lingua con un nuovo modello
         
+        Args:
+            parent: Widget padre
+            
         Returns:
-            Tupla contenente (LanguageSelector, LanguageController)
+            Tuple[LanguageSelector, LanguageController]: Componente UI e controller
         """
         model = LanguageModel()
         controller = LanguageController(model)
         selector = LanguageSelector(controller, parent)
-        
         return selector, controller
     
     @staticmethod
@@ -28,13 +27,12 @@ class LanguageUIFactory:
         """Crea un selettore di lingua usando un modello esistente
         
         Args:
-            model: Modello di lingua esistente
-            parent: Widget parent
+            model: Modello LanguageModel esistente
+            parent: Widget padre
             
         Returns:
-            Tupla contenente (LanguageSelector, LanguageController)
+            Tuple[LanguageSelector, LanguageController]: Componente UI e controller
         """
         controller = LanguageController(model)
         selector = LanguageSelector(controller, parent)
-        
         return selector, controller

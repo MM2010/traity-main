@@ -1,7 +1,6 @@
 # CategoryUIFactory.py
 # Factory per creare componenti UI relativi alle categorie
 
-from typing import Tuple
 from CLASSES.CategoryModel import CategoryModel
 from UI.CategorySelector import CategorySelector
 
@@ -10,30 +9,28 @@ class CategoryUIFactory:
     """Factory per creare componenti UI relativi alle categorie"""
     
     @staticmethod
-    def create_category_selector(parent=None) -> Tuple[CategorySelector, CategoryModel]:
-        """Crea un selettore di categoria completo con modello
+    def create_category_selector(parent=None):
+        """Crea un selettore di categoria con un nuovo modello
         
         Args:
-            parent: Widget parent
+            parent: Widget padre
             
         Returns:
-            Tupla contenente (CategorySelector, CategoryModel)
+            CategorySelector: Componente UI per selezione categoria
         """
         model = CategoryModel()
         selector = CategorySelector(model, parent)
-        
-        return selector, model
+        return selector
     
     @staticmethod
-    def create_category_selector_with_model(model: CategoryModel, parent=None) -> CategorySelector:
-        """Crea un selettore di categoria usando un modello esistente
+    def create_category_selector_with_model(model: CategoryModel, parent=None):
+        """Crea un selettore di categoria con un modello esistente
         
         Args:
-            model: Modello di categoria esistente
-            parent: Widget parent
+            model: Modello CategoryModel esistente
+            parent: Widget padre
             
         Returns:
-            CategorySelector configurato
+            CategorySelector: Componente UI per selezione categoria
         """
-        selector = CategorySelector(model, parent)
-        return selector
+        return CategorySelector(model, parent)

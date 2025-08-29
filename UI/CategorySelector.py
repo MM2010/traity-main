@@ -39,37 +39,27 @@ class CategorySelector(py.QFrame):
     def _setup_ui(self):
         """Configura l'interfaccia utente del selettore categoria"""
         # Configurazione del frame principale
-        self.setStyleSheet(AppStyles.LANGUAGE_CONTAINER)  # Riusa lo stile language
-        self.setMinimumHeight(AppConstants.LANGUAGE_CONTAINER_HEIGHT)
-        self.setMinimumWidth(AppConstants.LANGUAGE_CONTAINER_MIN_WIDTH)
-        self.setFixedHeight(AppConstants.LANGUAGE_CONTAINER_HEIGHT)
+        self.setFrameStyle(py.QFrame.Box)
+        self.setStyleSheet(AppStyles.LANGUAGE_CONTAINER)
         
         # Layout principale
         layout = py.QHBoxLayout(self)
-        layout.setContentsMargins(*AppConstants.LANGUAGE_LAYOUT_MARGINS)
-        layout.setSpacing(AppConstants.LANGUAGE_LAYOUT_SPACING)
+        layout.setContentsMargins(10, 5, 10, 5)
+        layout.setSpacing(10)
         
         # Label per il testo "Categoria:"
         self.category_label = py.QLabel("Categoria:")
         self.category_label.setStyleSheet(AppStyles.LANGUAGE_LABEL)
-        self.category_label.setMinimumHeight(AppConstants.LANGUAGE_LABEL_HEIGHT)
-        self.category_label.setFixedHeight(AppConstants.LANGUAGE_LABEL_HEIGHT)
+        layout.addWidget(self.category_label)
         
         # ComboBox per la selezione della categoria
         self.category_combo = py.QComboBox()
         self.category_combo.setStyleSheet(AppStyles.LANGUAGE_COMBO)
-        self.category_combo.setMinimumHeight(AppConstants.LANGUAGE_COMBO_HEIGHT)
-        self.category_combo.setMinimumWidth(AppConstants.LANGUAGE_COMBO_MIN_WIDTH)
-        self.category_combo.setFixedHeight(AppConstants.LANGUAGE_COMBO_HEIGHT)
+        layout.addWidget(self.category_combo)
         
         # Stato iniziale
         self.category_combo.addItem("Caricamento categorie...", None)
         self.category_combo.setEnabled(False)
-        
-        # Aggiungi i widget al layout
-        layout.addWidget(self.category_label)
-        layout.addWidget(self.category_combo)
-        layout.addStretch()  # Spinge tutto a sinistra
     
     def _setup_worker(self):
         """Configura il worker per le operazioni asincrone"""
