@@ -176,10 +176,12 @@ class AppStyles:
             color: white;                                   /* High contrast text */
             font-size: 16px;                               /* Prominent text size */
             font-weight: bold;                             /* Visual emphasis */
-            padding: 18px 40px;                            /* Large, clickable area */
+            padding: 12px 25px;                            /* Generous padding for text */
             border-radius: 5px;                            /* Rounded design */
             border: none;                                   /* Clean, flat appearance */
-            margin: 15px 50px;                             /* Generous spacing */
+            min-width: 120px;                              /* Minimum width for text */
+            min-height: 45px;                              /* Minimum height for touch */
+            text-align: center;                            /* Center text alignment */
         }
         QPushButton:hover {
             background-color: #2980b9;                     /* Darker blue on hover */
@@ -196,10 +198,12 @@ class AppStyles:
             color: white;                                   /* Clear text contrast */
             font-size: 16px;                               /* Consistent text size */
             font-weight: bold;                             /* Visual prominence */
-            padding: 18px 40px;                            /* Same size as next button */
+            padding: 12px 25px;                            /* Generous padding for text */
             border-radius: 5px;                            /* Consistent design */
             border: none;                                   /* Clean appearance */
-            margin: 15px 50px;                             /* Matching spacing */
+            min-width: 120px;                              /* Minimum width for text */
+            min-height: 45px;                              /* Minimum height for touch */
+            text-align: center;                            /* Center text alignment */
         }
         QPushButton:hover {
             background-color: #7f8c8d;                     /* Darker gray on hover */
@@ -220,10 +224,12 @@ class AppStyles:
             color: white;                                   /* High contrast text */
             font-size: 16px;                               /* Consistent text size */
             font-weight: bold;                             /* Visual emphasis */
-            padding: 18px 30px;                            /* Slightly smaller than nav buttons */
+            padding: 12px 25px;                            /* Generous padding for text */
             border-radius: 5px;                            /* Consistent design */
             border: none;                                   /* Clean appearance */
-            margin: 15px 20px;                             /* Appropriate spacing */
+            min-width: 180px;                              /* Wider for longer text */
+            min-height: 45px;                              /* Minimum height for touch */
+            text-align: center;                            /* Center text alignment */
         }
         QPushButton:hover {
             background-color: #e67e22;                     /* Darker orange on hover */
