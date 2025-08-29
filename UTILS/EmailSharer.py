@@ -24,6 +24,8 @@ from email.mime.multipart import MIMEMultipart
 from typing import Optional, Dict, Any
 import logging
 
+from UTILS.SMTPConfig import SMTPConfigManager, SMTPConfig
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -39,16 +41,15 @@ class EmailSharer:
     - Handle SMTP configuration and errors
     """
     
-    def __init__(self, smtp_server: str = "smtp.gmail.com", smtp_port: int = 587):
+    def __init__(self, config_manager: Optional[SMTPConfigManager] = None):
         """
         Initialize the EmailSharer with SMTP configuration.
         
         Args:
-            smtp_server (str): SMTP server address (default: Gmail)
-            smtp_port (int): SMTP server port (default: 587 for TLS)
+            config_manager (Optional[SMTPConfigManager]): SMTP configuration manager.
+                If None, creates a new instance.
         """
-        self.smtp_server = smtp_server
-        self.smtp_port = smtp_port
+        self.config_manager = config_manager or SMTPConfigManager()
         
     @staticmethod
     def validate_email(email: str) -> bool:
@@ -152,15 +153,51 @@ class EmailSharer:
                     'message': 'Sender name is required'
                 }
             
+            # Check if SMTP is configured
+            if not self.config_manager.is_configured():
+                return {
+                    'success': False,
+                    'message': 'SMTP not configured. Please configure email settings first.'
+                }
+            
+            # Get SMTP configuration
+            smtp_config = self.config_manager.current_config
+            if not smtp_config:
+                return {
+                    'success': False,
+                    'message': 'SMTP configuration not found.'
+                }
+            
+            # Get credentials
+            config_email, config_password = self.config_manager.get_credentials()
+            
+            # Use provided credentials or configured ones
+            if smtp_config.use_authentication:
+                if not sender_email:
+                    sender_email = config_email
+                if not sender_password:
+                    sender_password = config_password
+                
+                if not sender_email or not sender_password:
+                    return {
+                        'success': False,
+                        'message': 'Email credentials required but not provided.'
+                    }
+            
             # Compose email
             msg = self.compose_invitation_email(
                 recipient_email, sender_name, personal_message, language
             )
             
-            # Send email
-            server = smtplib.SMTP(self.smtp_server, self.smtp_port)
-            server.starttls()
-            server.login(sender_email, sender_password)
+            # Send email using configured SMTP settings
+            server = smtplib.SMTP(smtp_config.smtp_server, smtp_config.smtp_port)
+            
+            if smtp_config.use_tls:
+                server.starttls()
+            
+            if smtp_config.use_authentication and sender_email and sender_password:
+                server.login(sender_email, sender_password)
+            
             text = msg.as_string()
             server.sendmail(sender_email, recipient_email, text)
             server.quit()

@@ -14,6 +14,7 @@ from UTILS.easter_egg import init_easter_eggs
 from CLASSES.GameTracker import GameTracker, PlayerProfile
 from UI.StatsDialog import show_player_stats
 from UI.ShareDialog import ShareDialog
+from UI.SMTPConfigDialog import SMTPConfigDialog
 from typing import Optional
 
 import PyQt5.QtWidgets as py
@@ -331,6 +332,28 @@ class QuizApp(py.QMainWindow):
         share_action.triggered.connect(self._show_share_dialog)
         game_menu.addAction(share_action)
         
+        # SMTP Configuration action
+        smtp_texts = {
+            'it': "⚙️ Configura Email",
+            'en': "⚙️ Configure Email",
+            'es': "⚙️ Configurar Email",
+            'fr': "⚙️ Configurer Email",
+            'de': "⚙️ E-Mail Konfigurieren",
+            'pt': "⚙️ Configurar Email"
+        }
+        smtp_action = py.QAction(smtp_texts.get(language, smtp_texts['it']), self)
+        smtp_action.setShortcut("Ctrl+E")
+        smtp_action.setStatusTip({
+            'it': "Configura le impostazioni SMTP per l'invio di email",
+            'en': "Configure SMTP settings for email sending",
+            'es': "Configurar ajustes SMTP para envío de email",
+            'fr': "Configurer les paramètres SMTP pour l'envoi d'emails",
+            'de': "SMTP-Einstellungen für E-Mail-Versand konfigurieren",
+            'pt': "Configurar definições SMTP para envio de email"
+        }.get(language, "Configura le impostazioni SMTP per l'invio di email"))
+        smtp_action.triggered.connect(self._show_smtp_config_dialog)
+        game_menu.addAction(smtp_action)
+        
         # Separator
         game_menu.addSeparator()
         
@@ -394,6 +417,11 @@ class QuizApp(py.QMainWindow):
         """Show the share game dialog"""
         share_dialog = ShareDialog(self.language_model, self)
         share_dialog.exec_()
+
+    def _show_smtp_config_dialog(self):
+        """Show the SMTP configuration dialog"""
+        smtp_dialog = SMTPConfigDialog(self.language_model, self)
+        smtp_dialog.exec_()
 
     def _initialize_player_profile(self):
         """Initialize or load player profile for game tracking"""

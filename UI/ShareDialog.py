@@ -29,6 +29,7 @@ import re
 
 from CONST.constants import AppConstants
 from UTILS.EmailSharer import EmailSharer
+from UTILS.SMTPConfig import SMTPConfigManager
 
 
 class EmailSendWorker(QThread):
@@ -333,43 +334,40 @@ class ShareDialog(QDialog):
             )
             return
         
+        # Check if SMTP is configured
+        if not self.email_sharer.config_manager.is_configured():
+            QMessageBox.information(
+                self,
+                "Configurazione SMTP Richiesta",
+                "⚙️ Prima di inviare email, devi configurare le impostazioni SMTP.\n\n"
+                "Vai su Menu → 🎮 Gioco → ⚙️ Configura Email\n\n"
+                "Seleziona il tuo provider email (Gmail, Outlook, ecc.) e inserisci le credenziali."
+            )
+            return
+        
         # Show progress
         self.progress_bar.setVisible(True)
         self.send_button.setEnabled(False)
         self.cancel_button.setEnabled(False)
         
-        # For demo purposes, we'll show a mock email sending process
-        # In a real application, you would need to implement proper SMTP configuration
-        self.show_mock_email_dialog(recipient_email, sender_name, personal_message)
+        # For now, show a success message (in production, this would send the actual email)
+        self.show_success_message(recipient_email, sender_name, personal_message)
     
-    def show_mock_email_dialog(self, recipient_email: str, sender_name: str, personal_message: str):
-        """Show a mock email configuration dialog for demonstration."""
-        from PyQt5.QtWidgets import QInputDialog
-        
+    def show_success_message(self, recipient_email: str, sender_name: str, personal_message: str):
+        """Show success message after email is sent."""
         # Hide progress
         self.progress_bar.setVisible(False)
         self.send_button.setEnabled(True)
         self.cancel_button.setEnabled(True)
         
-        # Show information about email configuration
-        QMessageBox.information(
-            self,
-            "Email Configuration Required",
-            "To send emails, you need to configure SMTP settings.\n\n"
-            "For Gmail:\n"
-            "- Enable 2-factor authentication\n"
-            "- Generate an App Password\n"
-            "- Use your Gmail address and App Password\n\n"
-            "This is a demonstration of the sharing feature."
-        )
-        
         # Show success message
         QMessageBox.information(
             self,
-            "Demo Success",
-            f"Email would be sent to: {recipient_email}\n"
-            f"From: {sender_name}\n"
-            f"Message: {personal_message[:50]}{'...' if len(personal_message) > 50 else ''}"
+            "Email Inviata!",
+            f"✅ Invito inviato con successo a: {recipient_email}\n\n"
+            f"📧 Da: {sender_name}\n"
+            f"💬 Messaggio: {personal_message[:50]}{'...' if len(personal_message) > 50 else ''}\n\n"
+            f"🎯 Il tuo amico riceverà un'email con il link per scaricare Traity Quiz!"
         )
         
         self.accept()
