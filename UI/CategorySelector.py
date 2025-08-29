@@ -125,8 +125,9 @@ class CategorySelector(py.QFrame):
         self.category_combo.blockSignals(True)
         self.category_combo.clear()
         
-        # Aggiungi opzione "Tutte le categorie"
-        self.category_combo.addItem("Tutte le categorie", None)
+        # Aggiungi opzione "Tutte le categorie" tradotta
+        all_categories_text = self._get_translated_text('all_categories')
+        self.category_combo.addItem(all_categories_text, None)
         
         # Aggiungi le categorie disponibili
         categories = self.category_model.get_available_categories(self.current_language)
@@ -199,32 +200,62 @@ class CategorySelector(py.QFrame):
     
     def _translate_categories_for_current_language(self):
         """Avvia la traduzione delle categorie per la lingua corrente"""
-        # Controlla se abbiamo già le traduzioni per questa lingua
-        existing_translations = self.category_model.get_categories_for_language(self.current_language)
+        # Per inglese, usa direttamente le categorie originali
+        if self.current_language == 'en':
+            self._populate_category_combo()
+            return
+        
+        # Controlla se abbiamo VERAMENTE le traduzioni per questa lingua
+        # (non il fallback alle categorie originali)
+        has_real_translations = self.category_model._translated_categories.get(self.current_language) is not None
         original_categories = self.category_model.get_categories_for_language('en')
         
-        # Se non abbiamo traduzioni o sono diverse, traduci
-        if len(existing_translations) != len(original_categories) or self.current_language == 'en':
-            if self.current_language != 'en' and self.category_worker and not self.category_worker.isRunning():
-                self.category_worker.translate_categories(self.current_language, original_categories)
-            else:
-                # Per inglese, usa direttamente le categorie originali
-                self._populate_category_combo()
+        # Se abbiamo già le traduzioni reali per questa lingua, aggiorna subito la UI
+        if has_real_translations:
+            print(f"Using existing translations for language: {self.current_language}")
+            self._populate_category_combo()
+            return
+        
+        # Se non abbiamo traduzioni reali, avvia la traduzione
+        if self.category_worker and not self.category_worker.isRunning():
+            print(f"Starting translation for language: {self.current_language}")
+            self.category_worker.translate_categories(self.current_language, original_categories)
+        else:
+            print(f"Worker not available or already running, using fallback")
+            self._populate_category_combo()
     
     def _update_label_text(self):
-        """Aggiorna il testo della label (opzionale: può essere tradotto)"""
-        # Per ora manteniamo "Categoria:" fisso, ma può essere tradotto
-        label_texts = {
-            'it': 'Categoria:',
-            'en': 'Category:',
-            'es': 'Categoría:',
-            'fr': 'Catégorie:',
-            'de': 'Kategorie:',
-            'pt': 'Categoria:'
-        }
+        """Aggiorna il testo della label usando il sistema di traduzione centralizzato"""
+        # Usa il sistema di traduzione centralizzato se disponibile
+        label_text = self._get_translated_text('category_label')
         
-        label_text = label_texts.get(self.current_language, 'Categoria:')
+        # Fallback ai testi locali se la chiave non esiste
+        if label_text == 'category_label':  # Se non trovata nel sistema centralizzato
+            label_texts = {
+                'it': 'Categoria:',
+                'en': 'Category:',
+                'es': 'Categoría:',
+                'fr': 'Catégorie:',
+                'de': 'Kategorie:',
+                'pt': 'Categoria:'
+            }
+            label_text = label_texts.get(self.current_language, 'Categoria:')
+        
         self.category_label.setText(label_text)
+    
+    def _get_translated_text(self, key: str) -> str:
+        """Ottiene il testo tradotto per una chiave specifica
+        
+        Args:
+            key: Chiave del testo da tradurre
+            
+        Returns:
+            Testo tradotto nella lingua corrente
+        """
+        from CONST.constants import AppConstants
+        
+        texts = AppConstants.UI_TEXTS.get(self.current_language, {})
+        return texts.get(key, AppConstants.UI_TEXTS.get('it', {}).get(key, key))
     
     def get_selected_category_id(self) -> Optional[int]:
         """Restituisce l'ID della categoria selezionata"""

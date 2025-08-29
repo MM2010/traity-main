@@ -608,7 +608,7 @@ class QuizApp(py.QWidget):
         
         # Show loading indicator
         if hasattr(self, 'loading_label'):
-            self.loading_label.setText("Caricamento nuove domande...")
+            self._update_loading_text('loading_more')
             self.loading_label.show()
         
         # Automatically fetch new questions with updated parameters
