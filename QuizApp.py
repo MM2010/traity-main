@@ -46,7 +46,7 @@ from PyQt5.QtCore import Qt                             # Qt core functionality
 import time                                             # For timing question responses
 
 
-class QuizApp(py.QWidget):
+class QuizApp(py.QMainWindow):
     """
     Main Quiz Application Class
     
@@ -160,11 +160,15 @@ class QuizApp(py.QWidget):
         # MAIN LAYOUT CONFIGURATION
         # ====================================
         
+        # Create central widget for QMainWindow
+        self.central_widget = py.QWidget()
+        self.setCentralWidget(self.central_widget)
+        
         # Configure main vertical layout with proper spacing and margins
         self.layout = py.QVBoxLayout()
         self.layout.setSpacing(AppConstants.MAIN_LAYOUT_SPACING)     # Fixed spacing between elements
         self.layout.setContentsMargins(*AppConstants.MAIN_LAYOUT_MARGINS)  # Fixed margins
-        self.setLayout(self.layout)
+        self.central_widget.setLayout(self.layout)
 
         # ====================================
         # UI COMPONENT INITIALIZATION
@@ -287,6 +291,42 @@ class QuizApp(py.QWidget):
         
         # Force layout update and ensure visibility
         self.ensure_language_selector_visible()
+
+        # Create menu bar
+        self._create_menu_bar()
+
+    def _create_menu_bar(self):
+        """Create the application menu bar with stats access"""
+        menubar = self.menuBar()
+        
+        # Game menu
+        game_menu = menubar.addMenu("🎮 Gioco")
+        
+        # Stats action
+        stats_action = py.QAction("📊 Statistiche", self)
+        stats_action.setShortcut("Ctrl+S")
+        stats_action.setStatusTip("Visualizza le tue statistiche e progressi")
+        stats_action.triggered.connect(self._show_stats_dialog)
+        game_menu.addAction(stats_action)
+        
+        # Separator
+        game_menu.addSeparator()
+        
+        # Exit action
+        exit_action = py.QAction("🚪 Esci", self)
+        exit_action.setShortcut("Ctrl+Q")
+        exit_action.setStatusTip("Esci dall'applicazione")
+        exit_action.triggered.connect(self.close)
+        game_menu.addAction(exit_action)
+
+    def _show_stats_dialog(self):
+        """Show the player statistics dialog"""
+        if hasattr(self, 'current_player') and self.current_player:
+            show_player_stats(self.current_player, self)
+        else:
+            # Create a default profile if none exists
+            default_profile = self.game_tracker.create_player_profile("Giocatore Traity")
+            show_player_stats(default_profile, self)
 
     def ensure_language_selector_visible(self):
         """Ensures the language selector is always visible and properly sized"""

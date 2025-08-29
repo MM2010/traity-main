@@ -16,6 +16,7 @@ from PyQt5.QtCore import QTimer, Qt, QPoint
 from PyQt5.QtTest import QTest
 from UI.QuizApp import QuizApp
 from UTILS.easter_egg import RubberDuckEasterEgg, EasterEggManager
+from CLASSES.GameTracker import GameTracker, PlayerProfile
 
 
 def test_easter_egg_basic():
@@ -133,7 +134,9 @@ def test_easter_egg_integration():
 
     # Test cleanup
     print("🧹 Testing cleanup...")
-    quiz_app.closeEvent(None)  # Simulate close event
+    from PyQt5.QtGui import QCloseEvent
+    close_event = QCloseEvent()
+    quiz_app.closeEvent(close_event)  # Simulate close event
     print("✅ Cleanup completed")
 
     quiz_app.close()
@@ -271,13 +274,184 @@ def test_easter_egg_movement():
     else:
         print("❌ Movement continued after click")
 
-    # Cleanup
+    # Cleanup - stop movement first to avoid issues
+    print("🧹 Cleaning up...")
+    duck_egg._stop_movement()
     duck_egg.cleanup()
     test_widget.close()
 
     print("\n" + "=" * 60)
     print("✅ MOVEMENT TEST COMPLETED")
     print("=" * 60)
+
+
+def test_game_tracker_integration():
+    """Test GameTracker integration with QuizApp"""
+    print("\n" + "=" * 60)
+    print("TESTING GAME TRACKER INTEGRATION")
+    print("=" * 60)
+
+    app = py.QApplication(sys.argv)
+
+    # Create QuizApp instance
+    quiz_app = QuizApp()
+    quiz_app.show()
+
+    # Check if GameTracker is initialized
+    if hasattr(quiz_app, 'game_tracker'):
+        print("✅ GameTracker initialized successfully")
+    else:
+        print("❌ GameTracker not found")
+        return False
+
+    # Check if player profile is created
+    if hasattr(quiz_app, 'current_player') and quiz_app.current_player:
+        print(f"✅ Player profile created: {quiz_app.current_player.player_name}")
+    else:
+        print("❌ Player profile not created")
+        return False
+
+    # Simulate parameter change to test session management
+    print("🧪 Testing session management...")
+
+    # Get initial session state
+    initial_session = quiz_app.game_tracker.current_session
+
+    # Simulate language change (this should create new session)
+    if hasattr(quiz_app, 'language_model'):
+        # Store original language
+        original_lang = quiz_app.selected_language
+
+        # Change language (this triggers _reset_quiz_for_parameter_change)
+        quiz_app.selected_language = "es"  # Spanish
+        quiz_app._reset_quiz_for_parameter_change()
+
+        # Check if new session was created
+        new_session = quiz_app.game_tracker.current_session
+
+        if initial_session != new_session:
+            print("✅ New session created after parameter change")
+            print(f"   Old session: {initial_session.session_id if initial_session else 'None'}")
+            print(f"   New session: {new_session.session_id if new_session else 'None'}")
+        else:
+            print("⚠️  Session might not have changed (could be normal)")
+
+    # Test session stats
+    session_stats = quiz_app.get_session_stats()
+    if session_stats:
+        print("✅ Session statistics available")
+        print(f"   Session ID: {session_stats.get('session_id', 'N/A')}")
+    else:
+        print("ℹ️  No active session stats (normal if no questions answered)")
+
+    # Test player stats
+    player_stats = quiz_app.get_player_stats()
+    if player_stats:
+        print("✅ Player statistics available")
+        print(f"   Player: {player_stats.get('player_name', 'N/A')}")
+        print(f"   Total sessions: {player_stats.get('total_sessions', 0)}")
+    else:
+        print("ℹ️  No player stats available yet")
+
+    # Cleanup
+    from PyQt5.QtGui import QCloseEvent
+    close_event = QCloseEvent()
+    quiz_app.closeEvent(close_event)  # Simulate close event
+    quiz_app.close()
+
+    print("\n" + "=" * 60)
+    print("✅ GAME TRACKER INTEGRATION TEST COMPLETED")
+    print("=" * 60)
+    return True
+
+
+def test_game_tracker_standalone():
+    """Test GameTracker functionality independently"""
+    print("\n" + "=" * 60)
+    print("TESTING GAME TRACKER STANDALONE")
+    print("=" * 60)
+
+    from CLASSES.GameTracker import GameTracker, PlayerProfile
+
+    # Create GameTracker
+    tracker = GameTracker()
+
+    # Create player profile
+    player = tracker.create_player_profile("Test Player")
+    print(f"✅ Created player profile: {player.player_name}")
+
+    # Start a session
+    session = tracker.start_new_session(
+        player_profile=player,
+        language="it",
+        difficulty="medium",
+        question_type="multiple",
+        category_id=9,
+        category_name="General Knowledge"
+    )
+    print(f"✅ Started session: {session.session_id}")
+
+    # Simulate some question answers
+    questions_data = [
+        {
+            "question": "What is the capital of Italy?",
+            "correct_answer": "Rome",
+            "category": "Geography",
+            "category_id": 9,
+            "difficulty": "easy",
+            "type": "multiple"
+        },
+        {
+            "question": "What is 2 + 2?",
+            "correct_answer": "4",
+            "category": "Mathematics",
+            "category_id": 19,
+            "difficulty": "easy",
+            "type": "multiple"
+        }
+    ]
+
+    for i, q_data in enumerate(questions_data):
+        # Simulate answering first question correctly, second incorrectly
+        user_answer = q_data["correct_answer"] if i == 0 else "Wrong Answer"
+        time_taken = 3.5  # seconds
+
+        tracker.record_question_answer(
+            question_text=q_data["question"],
+            correct_answer=q_data["correct_answer"],
+            user_answer=user_answer,
+            time_taken=time_taken,
+            category=q_data["category"],
+            category_id=q_data["category_id"],
+            difficulty=q_data["difficulty"],
+            question_type=q_data["type"]
+        )
+        print(f"✅ Recorded answer {i+1}: {'Correct' if user_answer == q_data['correct_answer'] else 'Incorrect'}")
+
+    # End session
+    completed_session = tracker.end_current_session()
+    print(f"✅ Ended session - Duration: {completed_session.game_duration:.1f}s, Accuracy: {completed_session.accuracy_percentage:.1f}%")
+
+    # Check session stats
+    session_stats = completed_session.get_stats()
+    print(f"✅ Session stats - Questions: {session_stats['total_questions']}, Correct: {session_stats['correct_questions']}")
+
+    # Check player stats
+    player_stats = player.get_overall_stats()
+    print(f"✅ Player stats - Sessions: {player_stats['total_sessions']}, Overall accuracy: {player_stats['overall_accuracy']:.1f}%")
+
+    # Save profile
+    player.save_to_file()
+    print("✅ Player profile saved")
+
+    # Test loading profile
+    loaded_player = PlayerProfile.load_from_file(player_id=player.player_id)
+    print(f"✅ Loaded profile: {loaded_player.player_name}")
+
+    print("\n" + "=" * 60)
+    print("✅ GAME TRACKER STANDALONE TEST COMPLETED")
+    print("=" * 60)
+    return True
 
 
 if __name__ == "__main__":
@@ -289,6 +463,8 @@ if __name__ == "__main__":
     test_easter_egg_integration()
     test_easter_egg_timing()
     test_easter_egg_movement()
+    test_game_tracker_integration()
+    test_game_tracker_standalone()
 
     print("\n" + "=" * 80)
     print("🎊 EASTER EGG TEST SUITE COMPLETED")

@@ -1,0 +1,71 @@
+{
+  "player_id": "83f6af3f-ad05-41eb-b56d-582f24fd8f94",
+  "player_name": "Test Player",
+  "creation_date": "2025-08-29T17:41:38.887812",
+  "preferences": {},
+  "game_sessions": [
+    {
+      "session_id": "49b3f221-2f41-4642-b158-54d73c21b400",
+      "language": "it",
+      "difficulty": "medium",
+      "question_type": "multiple",
+      "category_id": 9,
+      "category_name": "General Knowledge",
+      "start_time": "2025-08-29T17:41:38.887904",
+      "end_time": "2025-08-29T17:41:38.888005",
+      "session_completed": true,
+      "total_questions": 2,
+      "correct_questions": 1,
+      "incorrect_questions": 1,
+      "accuracy_percentage": 50.0,
+      "average_response_time_sec": 2.65,
+      "game_duration_sec": 0.0,
+      "category_stats": {
+        "Geography": {
+          "total": 1,
+          "correct": 1,
+          "incorrect": 0,
+          "total_time": 3.2,
+          "accuracy": 100.0,
+          "avg_time": 3.2
+        },
+        "Mathematics": {
+          "total": 1,
+          "correct": 0,
+          "incorrect": 1,
+          "total_time": 2.1,
+          "accuracy": 0.0,
+          "avg_time": 2.1
+        }
+      },
+      "question_details": [
+        {
+          "question_id": "b510d241-dc13-47a9-b469-43559d548d02",
+          "category": "Geography",
+          "category_id": 9,
+          "difficulty": "easy",
+          "question_type": "multiple",
+          "question_text": "What is the capital of Italy?",
+          "correct_answer": "Rome",
+          "user_answer": "Rome",
+          "time_taken": 3.2,
+          "is_correct": true,
+          "timestamp": "2025-08-29T17:41:38.887995"
+        },
+        {
+          "question_id": "4738213b-a7a7-4130-ad1c-220b2c7bbe34",
+          "category": "Mathematics",
+          "category_id": 19,
+          "difficulty": "easy",
+          "question_type": "multiple",
+          "question_text": "What is 2 + 2?",
+          "correct_answer": "4",
+          "user_answer": "5",
+          "time_taken": 2.1,
+          "is_correct": false,
+          "timestamp": "2025-08-29T17:41:38.888003"
+        }
+      ]
+    }
+  ]
+}
