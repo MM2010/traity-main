@@ -21,8 +21,12 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 */__pycache__/
+*__pycache__/
 *.py[cod]
 *$py.class
+*.pyc
+*.pyo
+*.pyd
 
 # C extensions
 *.so
@@ -139,19 +143,36 @@ Icon?
 .Trash-*
 
 # ========================================
-# APPLICATION-SPECIFIC FILES
+# APPLICATION DATA AND USER FILES
 # ========================================
+
+# Main data directory - contains all user data and profiles
+data/
+data/player_profiles/
+data/cache/
+data/temp/
+data/logs/
+
+# Application-specific data files
+quiz_data.json
+user_preferences.json
+user_settings.json
+game_history.json
+player_stats.json
+session_data.json
+
+# Temporary data files
+temp_questions/
+cache/
+temp/
+tmp/
 
 # Log files
 *.log
 debug.txt
 error.log
-
-# Temporary data files
-quiz_data.json
-user_preferences.json
-temp_questions/
-cache/
+app.log
+game.log
 
 # API keys and sensitive data
 .env.local
@@ -160,6 +181,7 @@ cache/
 .env.production.local
 api_keys.json
 secrets.json
+config.local.json
 
 # Translation cache
 translations_cache/

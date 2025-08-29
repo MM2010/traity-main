@@ -11,6 +11,10 @@ from CLASSES.TypeUIFactory import TypeUIFactory
 from CLASSES.TypeModel import TypeModel
 from UI.SelectorContainer import SelectorContainer
 from UTILS.easter_egg import init_easter_eggs
+from CLASSES.GameTracker import GameTracker, PlayerProfile
+from UI.StatsDialog import show_player_stats
+from UI.ShareDialog import ShareDialog
+from UI.SMTPConfigDialog import SMTPConfigDialog
 from typing import Optional
 
 import PyQt5.QtWidgets as py
@@ -18,7 +22,7 @@ from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QIcon
 
 
-class QuizApp(py.QWidget):
+class QuizApp(py.QMainWindow):
     def __init__(self):
         super().__init__()
         
@@ -40,6 +44,12 @@ class QuizApp(py.QWidget):
         
         # Type configuration - usa il modello separato  
         self.type_model = TypeModel()
+        
+        # Game tracking system - inizializza il sistema di tracking delle sessioni
+        self.game_tracker = GameTracker()
+        
+        # Try to load existing player profile or create new one
+        self._initialize_player_profile()
         
         # Imposta il titolo iniziale
         self._update_window_title()
@@ -97,10 +107,14 @@ class QuizApp(py.QWidget):
         # Loading state management
         self.is_loading_overlay_visible = False
 
+        # Create central widget for QMainWindow
+        self.central_widget = py.QWidget()
+        self.setCentralWidget(self.central_widget)
+        
         self.layout = py.QVBoxLayout()
         self.layout.setSpacing(AppConstants.MAIN_LAYOUT_SPACING)  # Spazio fisso tra elementi
         self.layout.setContentsMargins(*AppConstants.MAIN_LAYOUT_MARGINS)  # Margini fissi
-        self.setLayout(self.layout)
+        self.central_widget.setLayout(self.layout)
 
         # Selector container unificato - organizza tutti i selector in griglia 2x4
         self.selector_container = SelectorContainer(self)
@@ -271,7 +285,276 @@ class QuizApp(py.QWidget):
         # Initialize Easter eggs
         self.easter_egg_manager = init_easter_eggs(self)
         
+        # Create menu bar
+        self._create_menu_bar()
+        
         # NOTE: is_initializing flag will be set to False when first questions are loaded
+
+    def _create_menu_bar(self, language: str = None):
+        """Create the application menu bar with stats access"""
+        if language is None:
+            language = self.selected_language
+            
+        menubar = self.menuBar()
+        menubar.clear()  # Clear existing menu
+        
+        # Game menu
+        game_menu_title = {
+            'it': "🎮 Gioco",
+            'en': "🎮 Game", 
+            'es': "🎮 Juego",
+            'fr': "🎮 Jeu",
+            'de': "🎮 Spiel",
+            'pt': "🎮 Jogo"
+        }.get(language, "🎮 Gioco")
+        
+        game_menu = menubar.addMenu(game_menu_title)
+        
+        # Share action
+        share_texts = {
+            'it': "📧 Condividi con Amici",
+            'en': "📧 Share with Friends",
+            'es': "📧 Compartir con Amigos", 
+            'fr': "📧 Partager avec Amis",
+            'de': "📧 Mit Freunden Teilen",
+            'pt': "📧 Compartilhar com Amigos"
+        }
+        share_action = py.QAction(share_texts.get(language, share_texts['it']), self)
+        share_action.setShortcut("Ctrl+H")
+        share_action.setStatusTip({
+            'it': "Condividi questo gioco con i tuoi amici via email",
+            'en': "Share this game with your friends via email",
+            'es': "Comparte este juego con tus amigos por email",
+            'fr': "Partagez ce jeu avec vos amis par email", 
+            'de': "Teilen Sie dieses Spiel mit Ihren Freunden per E-Mail",
+            'pt': "Compartilhe este jogo com seus amigos por email"
+        }.get(language, "Condividi questo gioco con i tuoi amici via email"))
+        share_action.triggered.connect(self._show_share_dialog)
+        game_menu.addAction(share_action)
+        
+        # SMTP Configuration action
+        smtp_texts = {
+            'it': "⚙️ Configura Email",
+            'en': "⚙️ Configure Email",
+            'es': "⚙️ Configurar Email",
+            'fr': "⚙️ Configurer Email",
+            'de': "⚙️ E-Mail Konfigurieren",
+            'pt': "⚙️ Configurar Email"
+        }
+        smtp_action = py.QAction(smtp_texts.get(language, smtp_texts['it']), self)
+        smtp_action.setShortcut("Ctrl+E")
+        smtp_action.setStatusTip({
+            'it': "Configura le impostazioni SMTP per l'invio di email",
+            'en': "Configure SMTP settings for email sending",
+            'es': "Configurar ajustes SMTP para envío de email",
+            'fr': "Configurer les paramètres SMTP pour l'envoi d'emails",
+            'de': "SMTP-Einstellungen für E-Mail-Versand konfigurieren",
+            'pt': "Configurar definições SMTP para envio de email"
+        }.get(language, "Configura le impostazioni SMTP per l'invio di email"))
+        smtp_action.triggered.connect(self._show_smtp_config_dialog)
+        game_menu.addAction(smtp_action)
+        
+        # Separator
+        game_menu.addSeparator()
+        
+        # Stats action
+        stats_texts = {
+            'it': "📊 Statistiche",
+            'en': "📊 Statistics",
+            'es': "📊 Estadísticas",
+            'fr': "📊 Statistiques", 
+            'de': "📊 Statistiken",
+            'pt': "📊 Estatísticas"
+        }
+        stats_action = py.QAction(stats_texts.get(language, stats_texts['it']), self)
+        stats_action.setShortcut("Ctrl+S")
+        stats_action.setStatusTip({
+            'it': "Visualizza le tue statistiche e progressi",
+            'en': "View your statistics and progress",
+            'es': "Ver tus estadísticas y progreso",
+            'fr': "Voir vos statistiques et progrès",
+            'de': "Zeigen Sie Ihre Statistiken und Fortschritte an",
+            'pt': "Veja suas estatísticas e progresso"
+        }.get(language, "Visualizza le tue statistiche e progressi"))
+        stats_action.triggered.connect(self._show_stats_dialog)
+        game_menu.addAction(stats_action)
+        
+        # Separator
+        game_menu.addSeparator()
+        
+        # Exit action
+        exit_texts = {
+            'it': "🚪 Esci",
+            'en': "🚪 Exit",
+            'es': "🚪 Salir",
+            'fr': "🚪 Quitter",
+            'de': "🚪 Beenden", 
+            'pt': "🚪 Sair"
+        }
+        exit_action = py.QAction(exit_texts.get(language, exit_texts['it']), self)
+        exit_action.setShortcut("Ctrl+Q")
+        exit_action.setStatusTip({
+            'it': "Esci dall'applicazione",
+            'en': "Exit the application",
+            'es': "Salir de la aplicación",
+            'fr': "Quitter l'application",
+            'de': "Anwendung beenden",
+            'pt': "Sair da aplicação"
+        }.get(language, "Esci dall'applicazione"))
+        exit_action.triggered.connect(self.close)
+        game_menu.addAction(exit_action)
+
+    def _show_stats_dialog(self):
+        """Show the player statistics dialog"""
+        if hasattr(self, 'current_player') and self.current_player:
+            show_player_stats(self.current_player, self)
+        else:
+            # Create a default profile if none exists
+            default_profile = self.game_tracker.create_player_profile("Giocatore Traity")
+            show_player_stats(default_profile, self)
+
+    def _show_share_dialog(self):
+        """Show the share game dialog"""
+        share_dialog = ShareDialog(self.language_model, self)
+        share_dialog.exec_()
+
+    def _show_smtp_config_dialog(self):
+        """Show the SMTP configuration dialog"""
+        smtp_dialog = SMTPConfigDialog(self.language_model, self)
+        smtp_dialog.exec_()
+
+    def _initialize_player_profile(self):
+        """Initialize or load player profile for game tracking"""
+        try:
+            # For now, create a default player profile
+            # In a real application, you might want to ask for player name or load from settings
+            player_name = "Giocatore Traity"
+            
+            # Try to load existing profile
+            existing_profiles = self.game_tracker.list_available_profiles()
+            
+            if existing_profiles:
+                # Load the most recent profile
+                most_recent = existing_profiles[0]
+                self.current_player = self.game_tracker.load_player_profile(most_recent['player_id'])
+                print(f"Loaded existing player profile: {self.current_player.player_name}")
+            else:
+                # Create new profile
+                self.current_player = self.game_tracker.create_player_profile(player_name)
+                print(f"Created new player profile: {self.current_player.player_name}")
+                
+        except Exception as e:
+            print(f"Warning: Could not initialize player profile: {e}")
+            # Create a fallback profile
+            self.current_player = self.game_tracker.create_player_profile("Giocatore Anonimo")
+
+    def _start_new_session(self):
+        """Start a new game session with current parameters"""
+        if not hasattr(self, 'current_player') or not self.current_player:
+            print("Warning: No player profile available for session")
+            return
+            
+        try:
+            # Get current parameters
+            language = self.selected_language
+            difficulty = self.difficulty_model.get_selected_difficulty() if hasattr(self, 'difficulty_model') else "medium"
+            question_type = self.type_model.get_selected_type() if hasattr(self, 'type_model') else "multiple"
+            category_id = self.category_model.get_selected_category_id() if hasattr(self, 'category_model') else None
+            
+            # Get category name
+            category_name = "Tutte le categorie"
+            if category_id is not None:
+                try:
+                    categories = self.category_model.get_categories()
+                    for cat in categories:
+                        if cat.get('id') == category_id:
+                            category_name = cat.get('name', 'Unknown')
+                            break
+                except Exception as e:
+                    print(f"Warning: Could not get category name: {e}")
+            
+            # Start new session
+            self.game_tracker.start_new_session(
+                player_profile=self.current_player,
+                language=language,
+                difficulty=difficulty,
+                question_type=question_type,
+                category_id=category_id,
+                category_name=category_name
+            )
+            
+            print(f"Started new game session: {language} | {category_name} | {difficulty} | {question_type}")
+            
+        except Exception as e:
+            print(f"Error starting new session: {e}")
+
+    def _end_current_session(self):
+        """End the current game session and save data"""
+        if not hasattr(self, 'game_tracker') or not self.game_tracker.current_session:
+            return
+            
+        try:
+            # End the session
+            completed_session = self.game_tracker.end_current_session()
+            
+            if completed_session:
+                print(f"Ended game session - Duration: {completed_session.game_duration:.1f}s, "
+                      f"Questions: {completed_session.total_questions}, "
+                      f"Accuracy: {completed_session.accuracy_percentage:.1f}%")
+                
+                # Save player profile
+                if hasattr(self, 'current_player') and self.current_player:
+                    self.current_player.save_to_file()
+                    print("Player profile saved successfully")
+                    
+        except Exception as e:
+            print(f"Error ending session: {e}")
+
+    def _record_question_answer(self, question_index: int, selected_answer: str, time_taken: float):
+        """Record a question answer in the current session"""
+        if not hasattr(self, 'game_tracker') or not self.game_tracker.current_session:
+            return
+            
+        if question_index >= len(self.questions):
+            return
+            
+        try:
+            question = self.questions[question_index]
+            
+            # Get question details
+            question_text = question.get('question', '')
+            correct_answer = question.get('correct_answer', '')
+            category = question.get('category', 'Unknown')
+            category_id = question.get('category_id')
+            difficulty = question.get('difficulty', 'medium')
+            question_type = question.get('type', 'multiple')
+            
+            # Record the answer
+            self.game_tracker.record_question_answer(
+                question_text=question_text,
+                correct_answer=correct_answer,
+                user_answer=selected_answer,
+                time_taken=time_taken,
+                category=category,
+                category_id=category_id,
+                difficulty=difficulty,
+                question_type=question_type
+            )
+            
+        except Exception as e:
+            print(f"Error recording question answer: {e}")
+
+    def get_session_stats(self):
+        """Get current session statistics"""
+        if hasattr(self, 'game_tracker'):
+            return self.game_tracker.get_session_stats()
+        return None
+
+    def get_player_stats(self):
+        """Get player overall statistics"""
+        if hasattr(self, 'current_player'):
+            return self.current_player.get_overall_stats()
+        return None
 
     def ensure_selectors_visible(self):
         """Ensures all selectors are visible in the unified container"""
@@ -523,6 +806,9 @@ class QuizApp(py.QWidget):
             print(f"Language changing from {old_language} to {new_language}")
             self.selected_language = new_language
             
+            # Update menu bar with new language
+            self._create_menu_bar(new_language)
+            
             # Update all selector languages
             if hasattr(self, 'category_selector'):
                 self.category_selector.set_language(new_language)
@@ -618,8 +904,14 @@ class QuizApp(py.QWidget):
         self._reset_quiz_for_parameter_change()
 
     def _reset_quiz_for_parameter_change(self):
-        """Reset quiz state when any parameter changes"""
+        """Reset quiz state when any parameter changes and manage game sessions"""
         print("Resetting quiz due to parameter change...")
+        
+        # End current game session if it exists
+        self._end_current_session()
+        
+        # Start new game session with updated parameters
+        self._start_new_session()
         
         # Nascondi overlay se presente
         if hasattr(self, 'is_loading_overlay_visible') and self.is_loading_overlay_visible:
@@ -1014,9 +1306,17 @@ class QuizApp(py.QWidget):
             self.call_load_question_again = True
             return
 
+        # Track response time (simplified - in a real app you'd track from question display)
+        import time
+        response_time = 5.0  # Default time, could be improved with actual timing
+
         # Save the user's answer if not already answered
         if self.index not in self.answered_questions:
-            self.answered_questions[self.index] = sender.text()
+            user_answer = sender.text()
+            self.answered_questions[self.index] = user_answer
+            
+            # Record the answer in game tracker
+            self._record_question_answer(self.index, user_answer, response_time)
             
             # Update last answered index - this is the key fix!
             self.last_answered_index = self.index
@@ -1370,3 +1670,23 @@ class QuizApp(py.QWidget):
             (screen_width - optimal_width) // 2,
             (screen_height - optimal_height) // 2
         )
+
+    def closeEvent(self, event):
+        """Handle application close event to save current session"""
+        try:
+            print("Application closing, saving current session...")
+            
+            # End current game session if it exists
+            self._end_current_session()
+            
+            # Cleanup Easter eggs
+            if hasattr(self, 'easter_egg_manager'):
+                self.easter_egg_manager.cleanup()
+            
+            print("Application closed successfully")
+            
+        except Exception as e:
+            print(f"Error during application close: {e}")
+        
+        # Accept the close event
+        event.accept()

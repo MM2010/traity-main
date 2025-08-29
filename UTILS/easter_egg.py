@@ -10,6 +10,51 @@ import random
 import PyQt5.QtWidgets as py
 from PyQt5.QtCore import QTimer, Qt, QPoint, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QFont, QCursor
+import os
+import getpass
+import platform
+
+
+def get_system_username():
+    """
+    Recupera il nome utente del sistema operativo in modo robusto.
+
+    Prova diversi metodi per garantire compatibilità cross-platform:
+    - Windows: USERNAME environment variable
+    - Unix/Linux: USER environment variable
+    - Fallback: getpass.getuser()
+    - Fallback finale: os.getlogin()
+
+    Returns:
+        str: Nome utente del sistema o "Utente" se non riesce a recuperarlo
+    """
+    try:
+        # Metodo 1: Environment variables (più affidabile)
+        if platform.system() == 'Windows':
+            username = os.environ.get('USERNAME')
+        else:
+            username = os.environ.get('USER')
+
+        if username:
+            return username
+
+        # Metodo 2: getpass.getuser() (molto affidabile)
+        try:
+            return getpass.getuser()
+        except:
+            pass
+
+        # Metodo 3: os.getlogin() (può fallire in alcuni ambienti)
+        try:
+            return os.getlogin()
+        except:
+            pass
+
+    except Exception as e:
+        print(f"Warning: Could not retrieve system username: {e}")
+
+    # Fallback finale
+    return "Utente"
 
 
 class RubberDuckEasterEgg:
@@ -33,6 +78,10 @@ class RubberDuckEasterEgg:
             parent_widget: The parent widget (usually QuizApp main window)
         """
         self.parent = parent_widget
+
+        # Recupera automaticamente il nome utente del sistema
+        self.system_username = get_system_username()
+
         self.duck_widget = None
         self.appear_timer = QTimer()
         self.disappear_timer = QTimer()
@@ -40,11 +89,12 @@ class RubberDuckEasterEgg:
         self.animation = None
         self.movement_animation = None
 
-        # Movement parameters
+        # Movement parameters - ULTRA FAST AND CHAOTIC
         self.is_moving = False
         self.current_position = QPoint(0, 0)
-        self.movement_speed = 50  # pixels per second
-        self.direction_change_interval = 2000  # change direction every 2 seconds
+        self.movement_speed = 180  # Increased from 120 to 180 for more speed
+        self.direction_change_interval = 300  # Reduced from 800 to 300ms for ultra-frequent changes
+        self.start_position = None  # Track starting position to avoid returning
 
         # Configure timers
         self.appear_timer.timeout.connect(self._show_duck)
@@ -88,8 +138,8 @@ class RubberDuckEasterEgg:
         duck_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(duck_label)
 
-        # Add text label
-        text_label = py.QLabel("Quack! 🦆")
+        # Add text label with SYSTEM user name
+        text_label = py.QLabel(f"Ciao {self.system_username}! 🦆")
         text_label.setStyleSheet("""
             QLabel {
                 color: #2c3e50;
@@ -109,7 +159,7 @@ class RubberDuckEasterEgg:
         return self.duck_widget
 
     def _get_random_position(self):
-        """Get a random position for the duck within the parent widget"""
+        """Get a random position for the duck with SAFE DISTANCE from edges"""
         if not self.parent:
             return QPoint(100, 100)
 
@@ -117,15 +167,15 @@ class RubberDuckEasterEgg:
         parent_width = self.parent.width()
         parent_height = self.parent.height()
 
-        # Calculate safe area (avoid edges)
-        margin = 100
+        # Calculate safe area (avoid edges and give room for chaotic movement)
+        margin = 150  # Increased from 100 to 150 for more space
         safe_width = parent_width - 2 * margin - 120  # 120 is duck width
         safe_height = parent_height - 2 * margin - 120  # 120 is duck height
 
-        if safe_width < 0:
-            safe_width = 50
-        if safe_height < 0:
-            safe_height = 50
+        if safe_width < 200:  # Minimum safe width
+            safe_width = 200
+        if safe_height < 200:  # Minimum safe height
+            safe_height = 200
 
         # Generate random position within safe area
         x = margin + random.randint(0, max(0, safe_width))
@@ -134,24 +184,50 @@ class RubberDuckEasterEgg:
         return QPoint(x, y)
 
     def _get_random_direction(self):
-        """Get a random movement direction"""
-        # Generate random angle in radians
-        angle = random.uniform(0, 2 * 3.14159)  # 0 to 2π
+        """Get ULTRA CHAOTIC movement direction - never predictable!"""
+        # Generate COMPLETELY random direction with extreme variations
+        # Use multiple random factors for maximum unpredictability
 
-        # Convert to direction vector (normalized)
-        dx = self.movement_speed * 0.02 * random.uniform(0.5, 1.5)  # Random speed multiplier
-        dy = self.movement_speed * 0.02 * random.uniform(0.5, 1.5)
+        # Base speed with huge random multiplier (0.3x to 3x normal speed)
+        speed_multiplier = random.uniform(0.3, 3.0)
 
-        # Random direction
-        if random.choice([True, False]):
+        # Random base speed (30-60 pixels per frame)
+        base_speed = random.uniform(30, 60)
+
+        # Calculate final speed with chaos factor
+        final_speed = base_speed * speed_multiplier * 0.03  # Convert to animation units
+
+        # Generate COMPLETELY random direction vectors
+        # Use multiple random calls for maximum entropy
+        dx = final_speed * (random.random() * 2 - 1)  # -1 to 1
+        dy = final_speed * (random.random() * 2 - 1)  # -1 to 1
+
+        # Add random "impulse" for sudden direction changes
+        if random.random() < 0.3:  # 30% chance of sudden impulse
+            impulse_strength = random.uniform(1.5, 4.0)
+            if random.choice([True, False]):
+                dx *= impulse_strength
+            else:
+                dy *= impulse_strength
+
+        # Randomly flip directions for complete unpredictability
+        if random.random() < 0.5:
             dx = -dx
-        if random.choice([True, False]):
+        if random.random() < 0.5:
             dy = -dy
+
+        # Occasionally add diagonal bias for more interesting movement
+        if random.random() < 0.2:  # 20% chance
+            bias = random.choice([1.5, 2.0, 2.5])
+            if random.choice([True, False]):
+                dx *= bias
+            else:
+                dy *= bias
 
         return dx, dy
 
     def _calculate_next_position(self, current_pos, dx, dy):
-        """Calculate the next position ensuring it stays within bounds"""
+        """Calculate the next position with CHAOTIC bouncing"""
         if not self.parent:
             return current_pos
 
@@ -163,35 +239,53 @@ class RubberDuckEasterEgg:
         new_x = current_pos.x() + dx
         new_y = current_pos.y() + dy
 
-        # Bounce off edges
+        # CHAOTIC bouncing off edges with random variations
+        bounced = False
+
         if new_x <= 0 or new_x >= parent_width - duck_size:
-            dx = -dx
+            # Bounce with CHAOS - add random angle variation
+            dx = -dx * random.uniform(0.8, 1.3)  # Random bounce strength
+            dy += random.uniform(-50, 50)  # Add random vertical component
             new_x = max(0, min(new_x, parent_width - duck_size))
+            bounced = True
 
         if new_y <= 0 or new_y >= parent_height - duck_size:
-            dy = -dy
+            # Bounce with CHAOS - add random angle variation
+            dy = -dy * random.uniform(0.8, 1.3)  # Random bounce strength
+            dx += random.uniform(-50, 50)  # Add random horizontal component
             new_y = max(0, min(new_y, parent_height - duck_size))
+            bounced = True
+
+        # If bounced, add extra chaos to prevent predictable patterns
+        if bounced and random.random() < 0.6:  # 60% chance of extra chaos on bounce
+            chaos_factor = random.uniform(1.2, 2.0)
+            if random.choice([True, False]):
+                dx *= chaos_factor
+            else:
+                dy *= chaos_factor
 
         return QPoint(int(new_x), int(new_y)), dx, dy
 
     def _start_movement(self):
-        """Start the continuous movement"""
+        """Start the CHAOTIC movement - never return to start!"""
         if not self.duck_widget or self.is_moving:
             return
 
         self.is_moving = True
         self.current_position = self.duck_widget.pos()
+        self.start_position = self.current_position  # Remember start position to avoid
 
-        # Start direction change timer
-        self.movement_timer.start(self.direction_change_interval)
+        # Start direction change timer with RANDOM intervals
+        random_interval = random.randint(200, 500)  # 200-500ms random intervals
+        self.movement_timer.start(random_interval)
 
         # Start first movement
         self._change_direction()
 
-        print("🐤 Rubber duck started moving!")
+        print("🐤 Rubber duck started CHAOTIC movement! Never returns to start - PURE CHAOS!")
 
     def _change_direction(self):
-        """Change movement direction and start new animation"""
+        """Change movement direction with ULTRA CHAOS - never predictable!"""
         if not self.duck_widget or not self.is_moving:
             return
 
@@ -199,18 +293,32 @@ class RubberDuckEasterEgg:
         if self.movement_animation and self.movement_animation.state() == QPropertyAnimation.Running:
             self.movement_animation.stop()
 
-        # Get random direction
+        # Get ULTRA CHAOTIC direction
         dx, dy = self._get_random_direction()
 
-        # Calculate target position
-        target_pos, _, _ = self._calculate_next_position(self.current_position, dx * 10, dy * 10)
+        # Calculate target position with chaos
+        target_pos, _, _ = self._calculate_next_position(self.current_position, dx * 15, dy * 15)
+
+        # AVOID START POSITION - If too close to start, add chaos
+        if self.start_position:
+            distance_to_start = ((target_pos.x() - self.start_position.x()) ** 2 +
+                               (target_pos.y() - self.start_position.y()) ** 2) ** 0.5
+            if distance_to_start < 100:  # If within 100 pixels of start
+                # Add massive chaos to get away from start
+                chaos_dx = random.uniform(-200, 200)
+                chaos_dy = random.uniform(-200, 200)
+                target_pos, _, _ = self._calculate_next_position(
+                    self.current_position, dx * 15 + chaos_dx, dy * 15 + chaos_dy)
+
+        # ULTRA FAST animation duration (200-400ms random)
+        animation_duration = random.randint(200, 400)
 
         # Create movement animation
         self.movement_animation = QPropertyAnimation(self.duck_widget, b"pos")
-        self.movement_animation.setDuration(2000)  # 2 seconds for smooth movement
+        self.movement_animation.setDuration(animation_duration)
         self.movement_animation.setStartValue(self.current_position)
         self.movement_animation.setEndValue(target_pos)
-        self.movement_animation.setEasingCurve(QEasingCurve.InOutQuad)
+        self.movement_animation.setEasingCurve(QEasingCurve.Linear)  # More chaotic than smooth curves
 
         # Update current position when animation finishes
         self.movement_animation.finished.connect(
@@ -220,14 +328,58 @@ class RubberDuckEasterEgg:
         # Start animation
         self.movement_animation.start()
 
+        # Schedule NEXT random direction change
+        next_interval = random.randint(150, 400)  # Even more random timing
+        if self.movement_timer.isActive():
+            self.movement_timer.stop()
+        self.movement_timer.start(next_interval)
+
     def _on_movement_finished(self, new_position):
-        """Called when movement animation finishes"""
+        """Called when movement animation finishes - ADD MORE CHAOS!"""
         self.current_position = new_position
 
         # Continue movement if still active
         if self.is_moving:
-            # Small delay before next movement
-            QTimer.singleShot(500, self._change_direction)
+            # Add SMALL RANDOM MOVEMENT between major direction changes
+            if random.random() < 0.4:  # 40% chance of micro-movement
+                QTimer.singleShot(random.randint(50, 150), self._micro_movement)
+            else:
+                # Normal delay before next major movement
+                QTimer.singleShot(random.randint(100, 300), self._change_direction)
+
+    def _micro_movement(self):
+        """Add MICRO MOVEMENTS for ultra chaos between major direction changes"""
+        if not self.duck_widget or not self.is_moving:
+            return
+
+        # Tiny random movement (10-30 pixels)
+        micro_dx = random.uniform(-30, 30)
+        micro_dy = random.uniform(-30, 30)
+
+        # Calculate micro target
+        micro_target, _, _ = self._calculate_next_position(self.current_position, micro_dx, micro_dy)
+
+        # Quick micro animation (50-100ms)
+        micro_animation = QPropertyAnimation(self.duck_widget, b"pos")
+        micro_animation.setDuration(random.randint(50, 100))
+        micro_animation.setStartValue(self.current_position)
+        micro_animation.setEndValue(micro_target)
+        micro_animation.setEasingCurve(QEasingCurve.Linear)
+
+        # Update position and continue
+        micro_animation.finished.connect(
+            lambda: self._on_micro_movement_finished(micro_target)
+        )
+
+        micro_animation.start()
+
+    def _on_micro_movement_finished(self, new_position):
+        """Called when micro movement finishes"""
+        self.current_position = new_position
+
+        # Continue with major movement after micro movement
+        if self.is_moving:
+            QTimer.singleShot(random.randint(50, 200), self._change_direction)
 
     def _stop_movement(self):
         """Stop the continuous movement"""
@@ -270,11 +422,11 @@ class RubberDuckEasterEgg:
         self.duck_widget.raise_()  # Bring to front
         self.animation.start()
 
-        # Schedule auto-hide after 15 seconds (longer since it's moving)
+        # Schedule auto-hide after 30 seconds (longer for chaotic movement)
         self.disappear_timer.setSingleShot(True)
-        self.disappear_timer.start(15000)
+        self.disappear_timer.start(30000)
 
-        print("🐤 Rubber duck appeared! Click it to make it disappear")
+        print("🐤 Rubber duck appeared! Click it to make it disappear - it's going CHAOTIC!")
 
     def _hide_duck(self):
         """Hide the rubber duck with animation"""
@@ -301,7 +453,7 @@ class RubberDuckEasterEgg:
 
     def _on_duck_clicked(self, event):
         """Handle duck click event"""
-        print("🐤 Quack! Rubber duck clicked and dismissed")
+        print(f"🐤 Ciao {self.system_username}! Paperella cliccata e congedata")
         self._hide_duck()
 
         # Stop the auto-hide timer
