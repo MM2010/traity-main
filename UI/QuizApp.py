@@ -252,6 +252,21 @@ class QuizApp(py.QWidget):
         # Force layout update and ensure visibility
         self.ensure_selectors_visible()
         
+        # Setup responsive design
+        self._setup_responsive_design()
+        
+        # Connect resize event for dynamic adjustments
+        self.resizeEvent = self._on_resize_event
+        
+        # Set initial responsive styles
+        self._update_responsive_styles()
+        
+        # Set minimum window size
+        self.setMinimumSize(800, 600)
+        
+        # Set initial window size based on screen
+        self._set_initial_window_size()
+        
         # NOTE: is_initializing flag will be set to False when first questions are loaded
 
     def ensure_selectors_visible(self):
@@ -383,6 +398,10 @@ class QuizApp(py.QWidget):
         # Ridimensiona l'overlay per coprire tutto il widget
         self.loading_overlay.resize(self.size())
         self.loading_overlay.move(0, 0)
+        
+        # Center the content within the overlay
+        self._center_overlay_content()
+        
         self.loading_overlay.show()
         self.loading_overlay.raise_()  # Porta in primo piano
         self.is_loading_overlay_visible = True
@@ -392,6 +411,28 @@ class QuizApp(py.QWidget):
         
         # Disabilita tutti i selettori durante il loading
         self._disable_all_selectors()
+    
+    def _center_overlay_content(self):
+        """Center the overlay content (label and spinner)"""
+        if hasattr(self, 'loading_overlay_label') and hasattr(self, 'loading_spinner'):
+            # Get the center position
+            center_x = self.width() // 2
+            center_y = self.height() // 2
+
+            # Position the label above the spinner
+            label_width = self.loading_overlay_label.sizeHint().width()
+            label_height = self.loading_overlay_label.sizeHint().height()
+            self.loading_overlay_label.move(
+                center_x - label_width // 2,
+                center_y - label_height - 20
+            )
+
+            # Position the spinner below the label
+            spinner_width = self.loading_spinner.sizeHint().width()
+            self.loading_spinner.move(
+                center_x - spinner_width // 2,
+                center_y + 20
+            )
 
     def _hide_loading_overlay(self):
         """Nasconde l'overlay di loading sbloccando l'interfaccia"""
@@ -1031,5 +1072,369 @@ class QuizApp(py.QWidget):
         except Exception as e:
             print(f"Error during cleanup: {e}")
         
-        # Accept the close event
-        event.accept()
+    def _update_loading_overlay_size(self):
+        """Update loading overlay size and position when window is resized"""
+        if hasattr(self, 'loading_overlay') and self.loading_overlay.isVisible():
+            # Resize overlay to cover entire window
+            self.loading_overlay.resize(self.size())
+            self.loading_overlay.move(0, 0)
+
+            # Center the content within the overlay
+            self._center_overlay_content()
+
+            # Update overlay styles for current size
+            width = self.width()
+            height = self.height()
+            scale_factor = min(width / 1200, height / 800, 1.0)
+
+            # Update overlay label font size
+            font_size = max(int(16 * scale_factor), 12)
+            overlay_styles = f"""
+                QLabel {{
+                    font-size: {font_size}px;
+                    color: #2c3e50;
+                    background-color: rgba(255, 255, 255, 0.95);
+                    padding: {int(20 * scale_factor)}px;
+                    border-radius: {int(10 * scale_factor)}px;
+                    border: 2px solid #3498db;
+                }}
+            """
+            self.loading_overlay_label.setStyleSheet(overlay_styles)
+
+            # Update spinner size
+            spinner_font_size = max(int(24 * scale_factor), 18)
+            spinner_styles = f"""
+                QLabel {{
+                    font-size: {spinner_font_size}px;
+                    color: #3498db;
+                    background-color: transparent;
+                }}
+            """
+            self.loading_spinner.setStyleSheet(spinner_styles)
+    
+    # ========================================
+    # RESPONSIVE DESIGN METHODS
+    # ========================================
+    
+    def _setup_responsive_design(self):
+        """Setup responsive design elements and size policies"""
+        # Set size policies for main components
+        self.setSizePolicy(py.QSizePolicy.Expanding, py.QSizePolicy.Expanding)
+        
+        # Configure selector container for responsive behavior
+        if hasattr(self, 'selector_container'):
+            self.selector_container.setSizePolicy(py.QSizePolicy.Expanding, py.QSizePolicy.Preferred)
+        
+        # Configure question frame for responsive behavior
+        if hasattr(self, 'question_frame'):
+            self.question_frame.setSizePolicy(py.QSizePolicy.Expanding, py.QSizePolicy.Expanding)
+            self.label.setSizePolicy(py.QSizePolicy.Expanding, py.QSizePolicy.Expanding)
+        
+        # Configure stats container
+        if hasattr(self, 'stats_container'):
+            self.stats_container.setSizePolicy(py.QSizePolicy.Expanding, py.QSizePolicy.Preferred)
+        
+        # Configure navigation buttons container
+        # Note: nav_buttons_container is created in __init__ but we need to find it
+        for child in self.findChildren(py.QFrame):
+            if hasattr(child, 'layout') and isinstance(child.layout(), py.QHBoxLayout):
+                # Check if this frame contains navigation buttons
+                buttons = child.findChildren(py.QPushButton)
+                if len(buttons) >= 2:  # Should have at least previous and next buttons
+                    child.setSizePolicy(py.QSizePolicy.Expanding, py.QSizePolicy.Preferred)
+                    break
+    
+    def _on_resize_event(self, event):
+        """Handle window resize events for responsive adjustments"""
+        # Update responsive styles based on new size
+        self._update_responsive_styles()
+
+        # Update button sizes based on window width
+        self._update_button_sizes()
+
+        # Update font sizes based on window size
+        self._update_font_sizes()
+
+        # Update loading overlay position and size if visible
+        self._update_loading_overlay_size()
+
+        # Force layout update
+        self.updateGeometry()
+        self.update()
+
+        # Call parent resize event
+        super().resizeEvent(event)
+    
+    def _update_responsive_styles(self):
+        """Update CSS styles based on current window size"""
+        width = self.width()
+        height = self.height()
+
+        # Calculate scaling factors with better handling
+        # Use a more gradual scaling approach
+        base_width = 1200
+        base_height = 800
+        min_width = 600   # Minimum width before aggressive scaling
+        min_height = 400  # Minimum height before aggressive scaling
+
+        # Calculate scale factors with smoother transitions
+        if width >= base_width:
+            width_scale = 1.0
+        elif width >= min_width:
+            # Linear scaling between min_width and base_width
+            width_scale = 0.5 + 0.5 * (width - min_width) / (base_width - min_width)
+        else:
+            # Aggressive scaling for very small widths
+            width_scale = max(width / min_width, 0.3)
+
+        if height >= base_height:
+            height_scale = 1.0
+        elif height >= min_height:
+            # Linear scaling between min_height and base_height
+            height_scale = 0.5 + 0.5 * (height - min_height) / (base_height - min_height)
+        else:
+            # Aggressive scaling for very small heights
+            height_scale = max(height / min_height, 0.3)
+
+        scale_factor = min(width_scale, height_scale)
+
+        # Ensure scale_factor is reasonable
+        scale_factor = max(scale_factor, 0.3)  # Minimum scale
+        scale_factor = min(scale_factor, 1.5)  # Maximum scale
+
+        # Update selector container styles
+        if hasattr(self, 'selector_container'):
+            container_styles = self._get_responsive_selector_styles(scale_factor)
+            self.selector_container.setStyleSheet(container_styles)
+            # Update responsive layout for selector container
+            self.selector_container.update_responsive_layout(scale_factor)
+
+        # Update question frame styles
+        if hasattr(self, 'question_frame'):
+            question_styles = self._get_responsive_question_styles(scale_factor)
+            self.question_frame.setStyleSheet(question_styles)
+
+            label_styles = self._get_responsive_label_styles(scale_factor)
+            self.label.setStyleSheet(label_styles)
+
+        # Update stats container styles
+        if hasattr(self, 'stats_container'):
+            stats_styles = self._get_responsive_stats_styles(scale_factor)
+            self.stats_container.setStyleSheet(stats_styles)
+
+        # Update navigation buttons container
+        self._update_navigation_styles(scale_factor)
+    
+    def _update_navigation_styles(self, scale_factor):
+        """Update navigation buttons container styles"""
+        # Find navigation buttons container
+        for child in self.findChildren(py.QFrame):
+            if hasattr(child, 'layout') and isinstance(child.layout(), py.QHBoxLayout):
+                buttons = child.findChildren(py.QPushButton)
+                if len(buttons) >= 2:  # Should have at least previous and next buttons
+                    # Update container styles
+                    container_styles = f"""
+                        QFrame {{
+                            background-color: transparent;
+                            margin: {int(10 * scale_factor)}px {int(20 * scale_factor)}px;
+                        }}
+                    """
+                    child.setStyleSheet(container_styles)
+                    break
+    
+    def _get_responsive_selector_styles(self, scale_factor):
+        """Get responsive styles for selector container"""
+        # Ensure minimum values for very small scales
+        base_padding = max(int(15 * scale_factor), 5)
+        base_margin = max(int(20 * scale_factor), 5)
+        base_border_radius = max(int(8 * scale_factor), 3)
+        base_min_height = max(int(80 * scale_factor), 60)  # Reduced minimum height
+
+        return f"""
+            QFrame {{
+                background-color: white;
+                border-radius: {base_border_radius}px;
+                padding: {base_padding}px;
+                border: 1px solid #e0e0e0;
+                margin-bottom: {base_margin}px;
+                min-height: {base_min_height}px;
+            }}
+        """
+
+    def _get_responsive_question_styles(self, scale_factor):
+        """Get responsive styles for question frame"""
+        base_padding = max(int(20 * scale_factor), 8)
+        base_margin = max(int(15 * scale_factor), 5)
+        base_border_radius = max(int(5 * scale_factor), 2)
+
+        return f"""
+            QFrame {{
+                background-color: white;
+                border-radius: {base_border_radius}px;
+                padding: {base_padding}px;
+                border: 1px solid #e0e0e0;
+                margin-bottom: {base_margin}px;
+            }}
+        """
+
+    def _get_responsive_label_styles(self, scale_factor):
+        """Get responsive styles for question label"""
+        base_font_size = max(int(18 * scale_factor), 12)
+        base_padding = max(int(10 * scale_factor), 5)
+        base_border_radius = max(int(5 * scale_factor), 2)
+
+        return f"""
+            QLabel {{
+                font-size: {base_font_size}px;
+                font-weight: bold;
+                color: #2c3e50;
+                line-height: 1.4;
+                padding: {base_padding}px;
+                background-color: #f8f9fa;
+                border-radius: {base_border_radius}px;
+                border: 1px solid #e9ecef;
+            }}
+        """
+
+    def _get_responsive_stats_styles(self, scale_factor):
+        """Get responsive styles for stats container"""
+        base_padding = max(int(10 * scale_factor), 5)
+        base_border_radius = max(int(5 * scale_factor), 2)
+
+        return f"""
+            QFrame {{
+                background-color: #f8f9fa;
+                border-radius: {base_border_radius}px;
+                padding: {base_padding}px;
+                border: 1px solid #e0e0e0;
+                margin-bottom: {max(int(10 * scale_factor), 5)}px;
+            }}
+        """
+    
+    def _update_button_sizes(self):
+        """Update button sizes based on window width"""
+        width = self.width()
+        height = self.height()
+        scale_factor = min(width / 1200, height / 800, 1.0)
+
+        # Calculate button dimensions with minimum constraints
+        base_button_width = 120
+        base_button_height = 40
+        min_button_width = 80
+        min_button_height = 30
+
+        button_width = max(int(base_button_width * scale_factor), min_button_width)
+        button_height = max(int(base_button_height * scale_factor), min_button_height)
+
+        # Update navigation buttons
+        if hasattr(self, 'previous_btn'):
+            self.previous_btn.setMinimumWidth(button_width)
+            self.previous_btn.setMinimumHeight(button_height)
+            self.previous_btn.setMaximumWidth(button_width * 2)  # Allow some flexibility
+
+        if hasattr(self, 'next_btn'):
+            self.next_btn.setMinimumWidth(button_width)
+            self.next_btn.setMinimumHeight(button_height)
+            self.next_btn.setMaximumWidth(button_width * 2)
+
+        if hasattr(self, 'skip_to_next_btn'):
+            self.skip_to_next_btn.setMinimumWidth(int(button_width * 1.5))
+            self.skip_to_next_btn.setMinimumHeight(button_height)
+            self.skip_to_next_btn.setMaximumWidth(int(button_width * 3))
+
+        # Update option buttons if they exist
+        for button in getattr(self, 'option_buttons', []):
+            if button:
+                option_height = max(int(50 * scale_factor), 35)
+                button.setMinimumHeight(option_height)
+                button.setMaximumHeight(option_height * 2)
+    
+    def _update_font_sizes(self):
+        """Update font sizes based on window size"""
+        width = self.width()
+        height = self.height()
+        scale_factor = min(width / 1200, height / 800, 1.0)
+
+        # Define font size ranges
+        title_min, title_max = 12, 24
+        button_min, button_max = 12, 20
+        label_min, label_max = 10, 16
+
+        # Calculate font sizes with constraints
+        title_size = max(min(int(18 * scale_factor), title_max), title_min)
+        button_size = max(min(int(16 * scale_factor), button_max), button_min)
+        label_size = max(min(int(14 * scale_factor), label_max), label_min)
+
+        # Update main label font
+        if hasattr(self, 'label'):
+            font = self.label.font()
+            font.setPointSize(title_size)
+            self.label.setFont(font)
+
+        # Update stats labels font
+        if hasattr(self, 'correct_count_text'):
+            font = self.correct_count_text.font()
+            font.setPointSize(label_size)
+            self.correct_count_text.setFont(font)
+
+        if hasattr(self, 'wrong_count_text'):
+            font = self.wrong_count_text.font()
+            font.setPointSize(label_size)
+            self.wrong_count_text.setFont(font)
+
+        # Update result labels font
+        if hasattr(self, 'result_label'):
+            font = self.result_label.font()
+            font.setPointSize(label_size)
+            self.result_label.setFont(font)
+
+        if hasattr(self, 'right_answer'):
+            font = self.right_answer.font()
+            font.setPointSize(label_size)
+            self.right_answer.setFont(font)
+
+        # Update loading label font
+        if hasattr(self, 'loading_label'):
+            font = self.loading_label.font()
+            font.setPointSize(label_size)
+            self.loading_label.setFont(font)
+
+        # Update navigation buttons font
+        for button_name in ['previous_btn', 'next_btn', 'skip_to_next_btn']:
+            if hasattr(self, button_name):
+                button = getattr(self, button_name)
+                font = button.font()
+                font.setPointSize(button_size)
+                button.setFont(font)
+
+        # Update option buttons font
+        for button in getattr(self, 'option_buttons', []):
+            if button:
+                font = button.font()
+                font.setPointSize(button_size)
+                button.setFont(font)
+    
+    def _set_initial_window_size(self):
+        """Set initial window size based on screen resolution"""
+        # Get screen size
+        screen = py.QApplication.primaryScreen()
+        screen_geometry = screen.availableGeometry()
+        screen_width = screen_geometry.width()
+        screen_height = screen_geometry.height()
+        
+        # Calculate optimal window size (80% of screen size, max 1400x900)
+        optimal_width = min(int(screen_width * 0.8), 1400)
+        optimal_height = min(int(screen_height * 0.8), 900)
+        
+        # Ensure minimum size
+        optimal_width = max(optimal_width, 800)
+        optimal_height = max(optimal_height, 600)
+        
+        # Set window size
+        self.resize(optimal_width, optimal_height)
+        
+        # Center window on screen
+        self.move(
+            (screen_width - optimal_width) // 2,
+            (screen_height - optimal_height) // 2
+        )

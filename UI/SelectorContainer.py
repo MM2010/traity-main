@@ -189,3 +189,60 @@ class SelectorContainer(py.QFrame):
         # Forza l'aggiornamento del layout
         self.grid_layout.update()
         self.update()
+    
+    def update_responsive_layout(self, scale_factor: float = 1.0):
+        """
+        Aggiorna il layout per essere responsive alle dimensioni dello schermo
+        
+        Args:
+            scale_factor: Fattore di scala basato sulle dimensioni della finestra
+        """
+        # Aggiorna i margini e lo spacing basato sul fattore di scala
+        base_margin = int(15 * scale_factor)
+        base_spacing = int(15 * scale_factor)
+        
+        self.grid_layout.setContentsMargins(base_margin, base_margin, base_margin, base_margin)
+        self.grid_layout.setSpacing(base_spacing)
+        
+        # Aggiorna le dimensioni minime dei componenti
+        for selector_info in self.selectors:
+            # Aggiorna combo box minimum height
+            min_height = int(30 * scale_factor)
+            selector_info['combo'].setMinimumHeight(max(min_height, 25))
+            
+            # Aggiorna label font size
+            font = selector_info['label'].font()
+            font_size = int(14 * scale_factor)
+            font.setPointSize(max(font_size, 10))
+            selector_info['label'].setFont(font)
+            
+            # Aggiorna combo font size
+            combo_font = selector_info['combo'].font()
+            combo_font_size = int(14 * scale_factor)
+            combo_font.setPointSize(max(combo_font_size, 10))
+            selector_info['combo'].setFont(combo_font)
+        
+        # Forza l'aggiornamento del layout
+        self.updateGeometry()
+        self.update()
+    
+    def get_optimal_height(self, scale_factor: float = 1.0) -> int:
+        """
+        Calcola l'altezza ottimale del container basato sul contenuto
+        
+        Args:
+            scale_factor: Fattore di scala basato sulle dimensioni della finestra
+            
+        Returns:
+            Altezza ottimale in pixel
+        """
+        if not self.selectors:
+            return int(120 * scale_factor)
+        
+        # Calcola l'altezza basata sui componenti
+        label_height = int(25 * scale_factor)  # Altezza label
+        combo_height = int(35 * scale_factor)  # Altezza combo
+        spacing = int(15 * scale_factor)       # Spazio tra righe
+        padding = int(30 * scale_factor)       # Padding totale
+        
+        return label_height + combo_height + spacing + padding

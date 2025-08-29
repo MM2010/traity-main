@@ -78,7 +78,6 @@ class AppStyles:
             padding: 15px;                                 /* Generous internal padding */
             border: 1px solid #e0e0e0;                     /* Subtle border */
             margin-bottom: 20px;                           /* More spacing from content below */
-            min-height: 120px;                             /* Minimum height for 2 rows */
         }
     """
     
@@ -135,7 +134,6 @@ class AppStyles:
         color: #2c3e50;                                    /* Professional dark blue-gray */
         line-height: 1.4;                                 /* Comfortable line spacing */
         padding: 10px;                                     /* Internal spacing */
-        min-height: 100px;                                /* Minimum area for content */
         background-color: #f8f9fa;                        /* Subtle background highlight */
         border-radius: 5px;                               /* Rounded design */
         border: 1px solid #e9ecef;                        /* Light border definition */
@@ -157,7 +155,6 @@ class AppStyles:
             border: 2px solid #bdc3c7;                     /* Subtle border definition */
             margin: 8px 20px;                              /* Spacing between options */
             text-align: left;                              /* Left-aligned text */
-            min-height: 25px;                              /* Minimum touch target */
         }
         QPushButton:hover {
             background-color: #d5dbdb;                     /* Slightly darker on hover */
@@ -183,7 +180,6 @@ class AppStyles:
             border-radius: 5px;                            /* Rounded design */
             border: none;                                   /* Clean, flat appearance */
             margin: 15px 50px;                             /* Generous spacing */
-            min-height: 20px;                              /* Minimum touch target */
         }
         QPushButton:hover {
             background-color: #2980b9;                     /* Darker blue on hover */
@@ -204,7 +200,6 @@ class AppStyles:
             border-radius: 5px;                            /* Consistent design */
             border: none;                                   /* Clean appearance */
             margin: 15px 50px;                             /* Matching spacing */
-            min-height: 20px;                              /* Consistent touch target */
         }
         QPushButton:hover {
             background-color: #7f8c8d;                     /* Darker gray on hover */
@@ -229,7 +224,6 @@ class AppStyles:
             border-radius: 5px;                            /* Consistent design */
             border: none;                                   /* Clean appearance */
             margin: 15px 20px;                             /* Appropriate spacing */
-            min-height: 20px;                              /* Standard touch target */
         }
         QPushButton:hover {
             background-color: #e67e22;                     /* Darker orange on hover */
