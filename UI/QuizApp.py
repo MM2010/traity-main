@@ -13,6 +13,7 @@ from UI.SelectorContainer import SelectorContainer
 from UTILS.easter_egg import init_easter_eggs
 from CLASSES.GameTracker import GameTracker, PlayerProfile
 from UI.StatsDialog import show_player_stats
+from UI.ShareDialog import ShareDialog
 from typing import Optional
 
 import PyQt5.QtWidgets as py
@@ -288,17 +289,70 @@ class QuizApp(py.QMainWindow):
         
         # NOTE: is_initializing flag will be set to False when first questions are loaded
 
-    def _create_menu_bar(self):
+    def _create_menu_bar(self, language: str = None):
         """Create the application menu bar with stats access"""
+        if language is None:
+            language = self.selected_language
+            
         menubar = self.menuBar()
+        menubar.clear()  # Clear existing menu
         
         # Game menu
-        game_menu = menubar.addMenu("🎮 Gioco")
+        game_menu_title = {
+            'it': "🎮 Gioco",
+            'en': "🎮 Game", 
+            'es': "🎮 Juego",
+            'fr': "🎮 Jeu",
+            'de': "🎮 Spiel",
+            'pt': "🎮 Jogo"
+        }.get(language, "🎮 Gioco")
+        
+        game_menu = menubar.addMenu(game_menu_title)
+        
+        # Share action
+        share_texts = {
+            'it': "📧 Condividi con Amici",
+            'en': "📧 Share with Friends",
+            'es': "📧 Compartir con Amigos", 
+            'fr': "📧 Partager avec Amis",
+            'de': "📧 Mit Freunden Teilen",
+            'pt': "📧 Compartilhar com Amigos"
+        }
+        share_action = py.QAction(share_texts.get(language, share_texts['it']), self)
+        share_action.setShortcut("Ctrl+H")
+        share_action.setStatusTip({
+            'it': "Condividi questo gioco con i tuoi amici via email",
+            'en': "Share this game with your friends via email",
+            'es': "Comparte este juego con tus amigos por email",
+            'fr': "Partagez ce jeu avec vos amis par email", 
+            'de': "Teilen Sie dieses Spiel mit Ihren Freunden per E-Mail",
+            'pt': "Compartilhe este jogo com seus amigos por email"
+        }.get(language, "Condividi questo gioco con i tuoi amici via email"))
+        share_action.triggered.connect(self._show_share_dialog)
+        game_menu.addAction(share_action)
+        
+        # Separator
+        game_menu.addSeparator()
         
         # Stats action
-        stats_action = py.QAction("📊 Statistiche", self)
+        stats_texts = {
+            'it': "📊 Statistiche",
+            'en': "📊 Statistics",
+            'es': "📊 Estadísticas",
+            'fr': "📊 Statistiques", 
+            'de': "📊 Statistiken",
+            'pt': "📊 Estatísticas"
+        }
+        stats_action = py.QAction(stats_texts.get(language, stats_texts['it']), self)
         stats_action.setShortcut("Ctrl+S")
-        stats_action.setStatusTip("Visualizza le tue statistiche e progressi")
+        stats_action.setStatusTip({
+            'it': "Visualizza le tue statistiche e progressi",
+            'en': "View your statistics and progress",
+            'es': "Ver tus estadísticas y progreso",
+            'fr': "Voir vos statistiques et progrès",
+            'de': "Zeigen Sie Ihre Statistiken und Fortschritte an",
+            'pt': "Veja suas estatísticas e progresso"
+        }.get(language, "Visualizza le tue statistiche e progressi"))
         stats_action.triggered.connect(self._show_stats_dialog)
         game_menu.addAction(stats_action)
         
@@ -306,9 +360,24 @@ class QuizApp(py.QMainWindow):
         game_menu.addSeparator()
         
         # Exit action
-        exit_action = py.QAction("🚪 Esci", self)
+        exit_texts = {
+            'it': "🚪 Esci",
+            'en': "🚪 Exit",
+            'es': "🚪 Salir",
+            'fr': "🚪 Quitter",
+            'de': "🚪 Beenden", 
+            'pt': "🚪 Sair"
+        }
+        exit_action = py.QAction(exit_texts.get(language, exit_texts['it']), self)
         exit_action.setShortcut("Ctrl+Q")
-        exit_action.setStatusTip("Esci dall'applicazione")
+        exit_action.setStatusTip({
+            'it': "Esci dall'applicazione",
+            'en': "Exit the application",
+            'es': "Salir de la aplicación",
+            'fr': "Quitter l'application",
+            'de': "Anwendung beenden",
+            'pt': "Sair da aplicação"
+        }.get(language, "Esci dall'applicazione"))
         exit_action.triggered.connect(self.close)
         game_menu.addAction(exit_action)
 
@@ -320,6 +389,11 @@ class QuizApp(py.QMainWindow):
             # Create a default profile if none exists
             default_profile = self.game_tracker.create_player_profile("Giocatore Traity")
             show_player_stats(default_profile, self)
+
+    def _show_share_dialog(self):
+        """Show the share game dialog"""
+        share_dialog = ShareDialog(self.language_model, self)
+        share_dialog.exec_()
 
     def _initialize_player_profile(self):
         """Initialize or load player profile for game tracking"""
@@ -703,6 +777,9 @@ class QuizApp(py.QMainWindow):
         if new_language != self.selected_language:
             print(f"Language changing from {old_language} to {new_language}")
             self.selected_language = new_language
+            
+            # Update menu bar with new language
+            self._create_menu_bar(new_language)
             
             # Update all selector languages
             if hasattr(self, 'category_selector'):

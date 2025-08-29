@@ -169,6 +169,21 @@ class AppConstants:
             'type_any': 'Qualsiasi',                                # Any question type
             'type_multiple': 'Scelta Multipla',                     # Multiple choice questions
             'type_boolean': 'Vero/Falso',                           # True/False questions
+            
+            # Email sharing module texts
+            'share_game_title': 'Condividi il Gioco',               # Share game dialog title
+            'share_game_message': 'Condividi questo fantastico quiz con i tuoi amici!', # Share message
+            'recipient_email_label': 'Email del destinatario:',     # Recipient email label
+            'your_name_label': 'Il tuo nome:',                      # Your name label
+            'personal_message_label': 'Messaggio personale (opzionale):', # Personal message label
+            'send_button': 'Invia Invito',                          # Send invitation button
+            'cancel_button': 'Annulla',                             # Cancel button
+            'email_sent_success': 'Invito inviato con successo!',   # Email sent success message
+            'email_sent_error': 'Errore nell\'invio dell\'email. Riprova.', # Email sent error message
+            'invalid_email': 'Inserisci un indirizzo email valido.', # Invalid email message
+            'email_placeholder': 'esempio@email.com',               # Email placeholder
+            'name_placeholder': 'Il tuo nome',                      # Name placeholder
+            'message_placeholder': 'Scrivi un messaggio personalizzato...', # Message placeholder
         },
         
         # ========================================
@@ -209,6 +224,21 @@ class AppConstants:
             'type_any': 'Any',                                      # Any question type
             'type_multiple': 'Multiple Choice',                     # Multiple choice questions
             'type_boolean': 'True/False',                           # True/False questions
+            
+            # Email sharing module texts
+            'share_game_title': 'Share the Game',                   # Share game dialog title
+            'share_game_message': 'Share this amazing quiz with your friends!', # Share message
+            'recipient_email_label': 'Recipient email:',            # Recipient email label
+            'your_name_label': 'Your name:',                        # Your name label
+            'personal_message_label': 'Personal message (optional):', # Personal message label
+            'send_button': 'Send Invitation',                       # Send invitation button
+            'cancel_button': 'Cancel',                              # Cancel button
+            'email_sent_success': 'Invitation sent successfully!',  # Email sent success message
+            'email_sent_error': 'Error sending email. Please try again.', # Email sent error message
+            'invalid_email': 'Please enter a valid email address.', # Invalid email message
+            'email_placeholder': 'example@email.com',               # Email placeholder
+            'name_placeholder': 'Your name',                        # Name placeholder
+            'message_placeholder': 'Write a personal message...',   # Message placeholder
         },
         
         # ========================================
@@ -252,6 +282,21 @@ class AppConstants:
             
             # Loading and language-specific messages
             'loading_language': '🔄 Cargando preguntas en {}...',
+            
+            # Email sharing module texts
+            'share_game_title': 'Compartir el Juego',               # Share game dialog title
+            'share_game_message': '¡Comparte este increíble quiz con tus amigos!', # Share message
+            'recipient_email_label': 'Email del destinatario:',     # Recipient email label
+            'your_name_label': 'Tu nombre:',                        # Your name label
+            'personal_message_label': 'Mensaje personal (opcional):', # Personal message label
+            'send_button': 'Enviar Invitación',                     # Send invitation button
+            'cancel_button': 'Cancelar',                            # Cancel button
+            'email_sent_success': '¡Invitación enviada con éxito!', # Email sent success message
+            'email_sent_error': 'Error al enviar el email. Inténtalo de nuevo.', # Email sent error message
+            'invalid_email': 'Ingresa una dirección de email válida.', # Invalid email message
+            'email_placeholder': 'ejemplo@email.com',               # Email placeholder
+            'name_placeholder': 'Tu nombre',                        # Name placeholder
+            'message_placeholder': 'Escribe un mensaje personal...', # Message placeholder
         },
         
         # ========================================
@@ -293,6 +338,21 @@ class AppConstants:
             'type_any': 'Tout',                                     # Any question type
             'type_multiple': 'Choix Multiple',                      # Multiple choice questions
             'type_boolean': 'Vrai/Faux',                            # True/False questions
+            
+            # Email sharing module texts
+            'share_game_title': 'Partager le Jeu',                  # Share game dialog title
+            'share_game_message': 'Partagez ce quiz incroyable avec vos amis!', # Share message
+            'recipient_email_label': 'Email du destinataire:',      # Recipient email label
+            'your_name_label': 'Votre nom:',                        # Your name label
+            'personal_message_label': 'Message personnel (optionnel):', # Personal message label
+            'send_button': 'Envoyer l\'Invitation',                 # Send invitation button
+            'cancel_button': 'Annuler',                             # Cancel button
+            'email_sent_success': 'Invitation envoyée avec succès!', # Email sent success message
+            'email_sent_error': 'Erreur lors de l\'envoi de l\'email. Réessayez.', # Email sent error message
+            'invalid_email': 'Veuillez saisir une adresse email valide.', # Invalid email message
+            'email_placeholder': 'exemple@email.com',               # Email placeholder
+            'name_placeholder': 'Votre nom',                        # Name placeholder
+            'message_placeholder': 'Écrivez un message personnel...', # Message placeholder
         },
         
         # ========================================
@@ -334,6 +394,21 @@ class AppConstants:
             'type_any': 'Beliebig',                                 # Any question type
             'type_multiple': 'Multiple Choice',                     # Multiple choice questions
             'type_boolean': 'Wahr/Falsch',                          # True/False questions
+            
+            # Email sharing module texts
+            'share_game_title': 'Spiel Teilen',                     # Share game dialog title
+            'share_game_message': 'Teilen Sie dieses fantastische Quiz mit Ihren Freunden!', # Share message
+            'recipient_email_label': 'E-Mail des Empfängers:',      # Recipient email label
+            'your_name_label': 'Ihr Name:',                         # Your name label
+            'personal_message_label': 'Persönliche Nachricht (optional):', # Personal message label
+            'send_button': 'Einladung Senden',                      # Send invitation button
+            'cancel_button': 'Abbrechen',                           # Cancel button
+            'email_sent_success': 'Einladung erfolgreich gesendet!', # Email sent success message
+            'email_sent_error': 'Fehler beim Senden der E-Mail. Bitte versuchen Sie es erneut.', # Email sent error message
+            'invalid_email': 'Bitte geben Sie eine gültige E-Mail-Adresse ein.', # Invalid email message
+            'email_placeholder': 'beispiel@email.com',              # Email placeholder
+            'name_placeholder': 'Ihr Name',                         # Name placeholder
+            'message_placeholder': 'Schreiben Sie eine persönliche Nachricht...', # Message placeholder
         },
         
         # ========================================
