@@ -249,12 +249,16 @@ class AppStyles:
     
     # Loading indicator for async operations
     LOADING_LABEL = """
-        font-size: 16px;                                   /* Clear, readable text */
-        color: #7f8c8d;                                    /* Muted color for loading state */
-        background-color: white;                           /* Clean background */
-        border-radius: 5px;                               /* Consistent design */
-        padding: 30px;                                     /* Generous padding for visibility */
-        border: 2px dashed #bdc3c7;                       /* Dashed border indicates loading */
+        QLabel {
+            font-size: 16px;                                   /* Clear, readable text */
+            color: #7f8c8d;                                    /* Muted color for loading state */
+            background-color: white;                           /* Clean background */
+            border-radius: 5px;                               /* Consistent design */
+            padding: 30px;                                     /* Generous padding for visibility */
+            border: 2px dashed #bdc3c7;                       /* Dashed border indicates loading */
+            text-align: center;                               /* Center the text */
+            margin: 20px;                                     /* Add margin for spacing */
+        }
     """
     
     

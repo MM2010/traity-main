@@ -476,6 +476,25 @@
       "game_duration_sec": 3.8,
       "category_stats": {},
       "question_details": []
+    },
+    {
+      "session_id": "717c9f0b-1f91-4b72-bff0-5601ef529366",
+      "language": "es",
+      "difficulty": "medium",
+      "question_type": "multiple",
+      "category_id": 31,
+      "category_name": "Tutte le categorie",
+      "start_time": "2025-08-29T18:22:41.919608",
+      "end_time": "2025-08-29T18:22:58.063254",
+      "session_completed": true,
+      "total_questions": 0,
+      "correct_questions": 0,
+      "incorrect_questions": 0,
+      "accuracy_percentage": 0.0,
+      "average_response_time_sec": 0.0,
+      "game_duration_sec": 16.14,
+      "category_stats": {},
+      "question_details": []
     }
   ]
 }
