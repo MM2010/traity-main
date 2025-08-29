@@ -66,6 +66,35 @@ class AppConstants:
     REFETCH_THRESHOLD = 2           # Remaining questions threshold for auto-refetch (reduced to avoid 429)
     REFETCH_COUNT = 5               # Number of additional questions to fetch (increased for efficiency)
     
+    # ========================================
+    # SECURITY AND PERFORMANCE CONFIGURATION
+    # ========================================
+    
+    # API Request Configuration
+    API_REQUEST_TIMEOUT = 15                    # Timeout for API requests in seconds
+    API_MAX_RETRIES = 3                         # Maximum retry attempts for failed requests
+    API_RETRY_BACKOFF_BASE = 2                  # Base for exponential backoff (2^attempt seconds)
+    
+    # Rate Limiting Configuration
+    API_RATE_LIMIT_INTERVAL = 1.0               # Minimum seconds between API requests
+    API_MAX_REQUESTS_PER_MINUTE = 30           # Maximum API requests per minute
+    
+    # Thread Management
+    THREAD_TERMINATION_TIMEOUT = 5000          # Timeout for thread termination in milliseconds
+    MAX_THREAD_POOL_WORKERS = 8                # Maximum workers in translation thread pool
+    
+    # Translation Configuration
+    TRANSLATION_TIMEOUT = 30                   # Timeout for individual translations in seconds
+    MAX_TRANSLATION_RETRIES = 2                # Maximum retry attempts for translation failures
+    
+    # Application Limits
+    MAX_QUESTIONS_PER_REQUEST = 50             # Maximum questions per API request
+    MIN_QUESTIONS_PER_REQUEST = 1              # Minimum questions per API request
+    
+    # UI Configuration
+    UI_UPDATE_INTERVAL = 200                   # Spinner update interval in milliseconds
+    LOADING_OVERLAY_FADE_TIME = 300            # Loading overlay fade time in milliseconds
+    
     # Application icon path - relative to project root
     APP_ICON_PATH = '../assets/quiz_icon.png'
     

@@ -14,6 +14,7 @@ from typing import Optional
 
 import PyQt5.QtWidgets as py
 from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QIcon
 
 
 class QuizApp(py.QWidget):
@@ -61,9 +62,11 @@ class QuizApp(py.QWidget):
             import os
             icon_path = os.path.join(os.path.dirname(__file__), AppConstants.APP_ICON_PATH)
             if os.path.exists(icon_path):
-                self.setWindowIcon(py.QIcon(icon_path))
-        except Exception:
-            pass  # Continue without icon if not available
+                self.setWindowIcon(QIcon(icon_path))
+            else:
+                print(f"Warning: Application icon not found at {icon_path}")
+        except Exception as e:
+            print(f"Warning: Could not load application icon: {e}")
         
         # Ottimizzazione dimensioni - Avvia sempre a dimensioni massime
         screen = py.QApplication.desktop().screenGeometry()
@@ -385,7 +388,7 @@ class QuizApp(py.QWidget):
         self.is_loading_overlay_visible = True
         
         # Avvia animazione spinner
-        self.spinner_timer.start(200)  # Aggiorna ogni 200ms
+        self.spinner_timer.start(AppConstants.UI_UPDATE_INTERVAL)  # Use config interval
         
         # Disabilita tutti i selettori durante il loading
         self._disable_all_selectors()
@@ -503,8 +506,8 @@ class QuizApp(py.QWidget):
                     if cat.get('id') == new_category:
                         category_name = cat.get('name', 'Unknown')
                         break
-            except:
-                pass
+            except Exception as e:
+                print(f"Warning: Could not retrieve category name: {e}")
         
         print(f"Category model changed to: {category_name} (ID: {new_category})")
         # Solo log, non reset qui per evitare duplicazioni
@@ -524,8 +527,8 @@ class QuizApp(py.QWidget):
                 if cat.get('id') == category_id:
                     category_name = cat.get('name', 'Unknown')
                     break
-        except:
-            pass
+        except Exception as e:
+            print(f"Warning: Could not retrieve category name: {e}")
         
         print(f"Category selected: {category_name} (ID: {category_id})")
         # Reset quiz with new category
@@ -616,7 +619,16 @@ class QuizApp(py.QWidget):
         self.fetch_question(AppConstants.DEFAULT_QUESTION_COUNT)
 
     def fetch_question(self, count=5):
-        if not self.is_fetching:
+        """Fetch questions with robust error handling and parameter validation"""
+        if self.is_fetching:
+            print("Question fetch already in progress, skipping...")
+            return
+        
+        try:
+            # Validate count parameter
+            if not isinstance(count, int) or count < AppConstants.MIN_QUESTIONS_PER_REQUEST or count > AppConstants.MAX_QUESTIONS_PER_REQUEST:
+                raise ValueError(f"Invalid question count: {count}. Must be {AppConstants.MIN_QUESTIONS_PER_REQUEST}-{AppConstants.MAX_QUESTIONS_PER_REQUEST}")
+            
             # Mostra l'overlay di loading
             self._show_loading_overlay()
             
@@ -624,50 +636,96 @@ class QuizApp(py.QWidget):
             if hasattr(self, 'worker') and self.worker and self.worker.isRunning():
                 print("Stopping existing worker...")
                 self.worker.quit()
-                self.worker.wait()
+                if not self.worker.wait(AppConstants.THREAD_TERMINATION_TIMEOUT):  # Use config timeout
+                    print("Warning: Worker did not terminate gracefully")
+                    self.worker.terminate()
                 self.worker = None
             
             self.is_fetching = True
             self.is_loading_questions = True  # Block selector changes during loading
             
-            # Get all selected parameters from models
-            selected_category_id = self.category_model.get_selected_category_id() if hasattr(self, 'category_model') else None
-            selected_difficulty = self.difficulty_model.get_selected_difficulty() if hasattr(self, 'difficulty_model') else None
-            selected_type = self.type_model.get_selected_type() if hasattr(self, 'type_model') else None
+            # Get all selected parameters from models with validation
+            selected_category_id = None
+            selected_difficulty = None
+            selected_type = None
+            
+            try:
+                if hasattr(self, 'category_model') and self.category_model:
+                    selected_category_id = self.category_model.get_selected_category_id()
+                if hasattr(self, 'difficulty_model') and self.difficulty_model:
+                    selected_difficulty = self.difficulty_model.get_selected_difficulty()
+                if hasattr(self, 'type_model') and self.type_model:
+                    selected_type = self.type_model.get_selected_type()
+            except Exception as e:
+                print(f"Warning: Error retrieving model parameters: {e}")
             
             print(f"Fetching {count} questions:")
             print(f"  - Language: '{self.selected_language}'")
             print(f"  - Category ID: {selected_category_id}")
             print(f"  - Difficulty: {selected_difficulty}")
             print(f"  - Type: {selected_type}")
-            print("Blocking selector changes during question loading...")
-            print(f"  - Type: {selected_type}")
             
-            self.worker = QuestionWorker(count, self.selected_language, selected_category_id, selected_difficulty, selected_type)
+            # Create worker with validated parameters
+            self.worker = QuestionWorker(count, self.selected_language, 
+                                       selected_category_id, selected_difficulty, selected_type)
+            
+            # Connect signals
             self.worker.question_ready.connect(self.add_question)
             self.worker.question_ready.connect(lambda: self._on_questions_loaded())
+            
+            # Start worker
+            self.worker.start()
+            
+        except ValueError as e:
+            print(f"Parameter validation error: {e}")
+            self._hide_loading_overlay()
+            self.is_fetching = False
+            self.is_loading_questions = False
+        except Exception as e:
+            print(f"Unexpected error starting question fetch: {e}")
+            self._hide_loading_overlay()
+            self.is_fetching = False
+            self.is_loading_questions = False
             self.worker.start()
         else:
             print("Caricamento già in corso, richiesta ignorata")
 
     def _fetch_question_silent(self, count=5):
         """Fetch questions silently without showing overlay (used for background refetch)"""
-        if not self.is_fetching:
-            # NO overlay per refetch silenzioso
+        if self.is_fetching:
+            print("Silent fetch already in progress, skipping...")
+            return
+        
+        try:
+            # Validate count parameter
+            if not isinstance(count, int) or count < AppConstants.MIN_QUESTIONS_PER_REQUEST or count > AppConstants.MAX_QUESTIONS_PER_REQUEST:
+                raise ValueError(f"Invalid question count: {count}. Must be {AppConstants.MIN_QUESTIONS_PER_REQUEST}-{AppConstants.MAX_QUESTIONS_PER_REQUEST}")
             
             # Stop any existing worker first
             if hasattr(self, 'worker') and self.worker and self.worker.isRunning():
                 print("Stopping existing worker...")
                 self.worker.quit()
-                self.worker.wait()
+                if not self.worker.wait(AppConstants.THREAD_TERMINATION_TIMEOUT):  # Use config timeout
+                    print("Warning: Worker did not terminate gracefully")
+                    self.worker.terminate()
                 self.worker = None
             
             self.is_fetching = True
             
-            # Get all selected parameters from models
-            selected_category_id = self.category_model.get_selected_category_id() if hasattr(self, 'category_model') else None
-            selected_difficulty = self.difficulty_model.get_selected_difficulty() if hasattr(self, 'difficulty_model') else None
-            selected_type = self.type_model.get_selected_type() if hasattr(self, 'type_model') else None
+            # Get all selected parameters from models with validation
+            selected_category_id = None
+            selected_difficulty = None
+            selected_type = None
+            
+            try:
+                if hasattr(self, 'category_model') and self.category_model:
+                    selected_category_id = self.category_model.get_selected_category_id()
+                if hasattr(self, 'difficulty_model') and self.difficulty_model:
+                    selected_difficulty = self.difficulty_model.get_selected_difficulty()
+                if hasattr(self, 'type_model') and self.type_model:
+                    selected_type = self.type_model.get_selected_type()
+            except Exception as e:
+                print(f"Warning: Error retrieving model parameters: {e}")
             
             print(f"Silently fetching {count} more questions:")
             print(f"  - Language: '{self.selected_language}'")
@@ -675,12 +733,23 @@ class QuizApp(py.QWidget):
             print(f"  - Difficulty: {selected_difficulty}")
             print(f"  - Type: {selected_type}")
             
-            self.worker = QuestionWorker(count, self.selected_language, selected_category_id, selected_difficulty, selected_type)
+            # Create worker with validated parameters
+            self.worker = QuestionWorker(count, self.selected_language, 
+                                       selected_category_id, selected_difficulty, selected_type)
+            
+            # Connect signals
             self.worker.question_ready.connect(self.add_question)
             self.worker.question_ready.connect(lambda: self._on_questions_loaded_silent())
+            
+            # Start worker
             self.worker.start()
-        else:
-            print("Caricamento già in corso, richiesta ignorata")
+            
+        except ValueError as e:
+            print(f"Parameter validation error in silent fetch: {e}")
+            self.is_fetching = False
+        except Exception as e:
+            print(f"Unexpected error in silent fetch: {e}")
+            self.is_fetching = False
 
     def _on_questions_loaded_silent(self):
         """Callback quando le domande sono state caricate silenziosamente"""
@@ -934,3 +1003,33 @@ class QuizApp(py.QWidget):
 
             if len(self.questions) - self.index <= AppConstants.REFETCH_THRESHOLD:
                 self._fetch_question_silent(AppConstants.REFETCH_COUNT)
+
+    def closeEvent(self, event):
+        """Handle application close event to properly cleanup resources"""
+        try:
+            print("Application closing, cleaning up resources...")
+            
+            # Stop any running worker threads
+            if hasattr(self, 'worker') and self.worker and self.worker.isRunning():
+                print("Terminating worker thread...")
+                self.worker.quit()
+                if not self.worker.wait(AppConstants.THREAD_TERMINATION_TIMEOUT):  # Use config timeout
+                    print("Warning: Worker thread did not terminate gracefully")
+                    self.worker.terminate()
+                self.worker = None
+            
+            # Stop any timers
+            if hasattr(self, 'spinner_timer') and self.spinner_timer.isActive():
+                self.spinner_timer.stop()
+            
+            # Hide loading overlay if visible
+            if hasattr(self, 'loading_overlay') and self.is_loading_overlay_visible:
+                self._hide_loading_overlay()
+            
+            print("Resource cleanup completed")
+            
+        except Exception as e:
+            print(f"Error during cleanup: {e}")
+        
+        # Accept the close event
+        event.accept()

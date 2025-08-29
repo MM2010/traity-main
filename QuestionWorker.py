@@ -35,9 +35,13 @@ Architecture:
 import requests                                          # HTTP requests for API calls
 from PyQt5.QtCore import QThread, pyqtSignal           # Qt threading and signals
 import time                                             # Time delays for rate limiting
+import logging                                          # Robust logging system
+import json                                             # JSON parsing
+import traceback                                        # Stack trace formatting
 
 from deep_translator import GoogleTranslator           # Translation service
 from concurrent.futures import ThreadPoolExecutor, as_completed  # Parallel processing
+from CONST.constants import AppConstants               # Application configuration
 
 import html                                             # HTML entity decoding
 import random                                           # Answer shuffling
@@ -69,9 +73,9 @@ class QuestionWorker(QThread):
     
     # Class-level rate limiting variables
     last_request_time = 0
-    min_request_interval = 1.0  # Minimum 1 second between API requests
+    min_request_interval = AppConstants.API_RATE_LIMIT_INTERVAL  # Use config value
 
-    def __init__(self, count=5, target_language='it'):
+    def __init__(self, count=5, target_language='it', category_id=None, difficulty=None, question_type=None):
         """
         Initialize the Question Worker
         
@@ -79,6 +83,9 @@ class QuestionWorker(QThread):
             count (int): Number of questions to fetch (default: 5)
             target_language (str): Target language code for translation (default: 'it')
                                  Supported: 'it', 'en', 'es', 'fr', 'de', 'pt'
+            category_id (int, optional): OpenTDB category ID
+            difficulty (str, optional): Question difficulty ('easy', 'medium', 'hard')
+            question_type (str, optional): Question type ('multiple', 'boolean')
         
         The worker is configured with the desired number of questions and target
         language for translation. It inherits QThread functionality for background
@@ -87,6 +94,48 @@ class QuestionWorker(QThread):
         super().__init__()
         self.count = count                              # Number of questions to fetch
         self.target_language = target_language          # Target language for translation
+        self.category_id = category_id                  # Category filter
+        self.difficulty = difficulty                    # Difficulty filter
+        self.question_type = question_type              # Question type filter
+        
+        # Initialize logger
+        self.logger = logging.getLogger(__name__)
+        
+        # Validate input parameters
+        self._validate_parameters()
+
+    def _validate_parameters(self):
+        """Validate input parameters to prevent API errors"""
+        try:
+            # Validate count
+            if not isinstance(self.count, int) or self.count < AppConstants.MIN_QUESTIONS_PER_REQUEST or self.count > AppConstants.MAX_QUESTIONS_PER_REQUEST:
+                raise ValueError(f"Count must be integer between {AppConstants.MIN_QUESTIONS_PER_REQUEST}-{AppConstants.MAX_QUESTIONS_PER_REQUEST}, got: {self.count}")
+            
+            # Validate target language
+            supported_languages = ['it', 'en', 'es', 'fr', 'de', 'pt']
+            if self.target_language not in supported_languages:
+                raise ValueError(f"Unsupported language: {self.target_language}. Supported: {supported_languages}")
+            
+            # Validate category_id
+            if self.category_id is not None:
+                if not isinstance(self.category_id, int) or self.category_id < 9 or self.category_id > 32:
+                    raise ValueError(f"Category ID must be integer between 9-32, got: {self.category_id}")
+            
+            # Validate difficulty
+            if self.difficulty is not None:
+                valid_difficulties = ['easy', 'medium', 'hard']
+                if self.difficulty not in valid_difficulties:
+                    raise ValueError(f"Difficulty must be one of {valid_difficulties}, got: {self.difficulty}")
+            
+            # Validate question_type
+            if self.question_type is not None:
+                valid_types = ['multiple', 'boolean']
+                if self.question_type not in valid_types:
+                    raise ValueError(f"Question type must be one of {valid_types}, got: {self.question_type}")
+                    
+        except ValueError as e:
+            self.logger.error(f"Parameter validation failed: {e}")
+            raise
 
     def translate_text(self, text):
         """
@@ -108,15 +157,29 @@ class QuestionWorker(QThread):
         - Logs translation errors for debugging purposes
         """
         try:
+            # Validate input text
+            if not isinstance(text, str) or not text.strip():
+                self.logger.warning(f"Invalid text for translation: {text}")
+                return text
+            
             # Skip translation for English - already in source language
             if self.target_language == 'en':
                 return text  # No translation needed for English
             
-            # Perform translation using Google Translator service
-            return GoogleTranslator(source="en", target=self.target_language).translate(text)
+            # Perform translation using Google Translator service with timeout
+            translator = GoogleTranslator(source="en", target=self.target_language)
+            translated = translator.translate(text)
+            
+            # Validate translation result
+            if not translated or not isinstance(translated, str):
+                self.logger.warning(f"Translation returned invalid result for: {text[:30]}...")
+                return text
+            
+            return translated
+            
         except Exception as e:
-            # Log error and return original text as fallback
-            print(f"Translation error for '{text[:30]}...': {e}")
+            # Log error with context and return original text as fallback
+            self.logger.error(f"Translation failed for text '{text[:50]}...': {str(e)}")
             return text  # Return original text if translation fails
 
     def run(self):
@@ -124,9 +187,9 @@ class QuestionWorker(QThread):
         Main worker execution method - runs in separate thread
         
         This method performs the complete question loading and translation process:
-        1. Fetches questions from OpenTrivia Database API
+        1. Fetches questions from OpenTrivia Database API with proper error handling
         2. Prepares texts for parallel translation
-        3. Translates all content using thread pool
+        3. Translates all content using thread pool with robust error handling
         4. Assembles final question objects
         5. Emits signal with completed questions
         
@@ -135,73 +198,165 @@ class QuestionWorker(QThread):
         
         API Configuration:
         - Source: OpenTrivia Database (opentdb.com)
-        - Category: General Knowledge (category=9)
-        - Difficulty: Medium
-        - Type: Multiple choice questions
+        - Dynamic parameters: category, difficulty, type
+        - Rate limiting and retry logic
         
         Error Handling:
         - Network timeouts and connection issues
-        - API response errors
+        - API response errors with retry logic
         - Translation service failures
         - Malformed question data
         """
         batch = []
         
-        # Construct API URL for fetching questions
-        url = f"https://opentdb.com/api.php?amount={self.count}&category=9&difficulty=medium&type=multiple"
-        
         try:
+            # Construct API URL with validated parameters
+            url = self._build_api_url()
+            self.logger.info(f"Fetching {self.count} questions from API: {url}")
+            
             # Rate limiting: ensure minimum interval between requests
             current_time = time.time()
             time_since_last = current_time - QuestionWorker.last_request_time
             
             if time_since_last < QuestionWorker.min_request_interval:
                 sleep_time = QuestionWorker.min_request_interval - time_since_last
-                print(f"Rate limiting: waiting {sleep_time:.1f}s before API request...")
+                self.logger.info(f"Rate limiting: waiting {sleep_time:.1f}s before API request...")
                 time.sleep(sleep_time)
             
-            print(f"Fetching questions from API...")
             QuestionWorker.last_request_time = time.time()
             
-            response = requests.get(url, timeout=10)
-            print(f"Response status: {response.status_code}")
+            # Make API request with timeout and retry logic
+            response = self._make_api_request_with_retry(url)
             
-            # Handle rate limiting with exponential backoff
-            if response.status_code == 429:
-                print("API rate limit exceeded (429). Implementing backoff...")
-                for attempt in range(3):  # Try up to 3 times
-                    wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
-                    print(f"Waiting {wait_time}s before retry attempt {attempt + 1}/3...")
-                    time.sleep(wait_time)
-                    
-                    response = requests.get(url, timeout=10)
-                    print(f"Retry response status: {response.status_code}")
-                    
-                    if response.status_code == 200:
-                        break
+            if response and response.status_code == 200:
+                # Process successful response
+                questions = self._process_api_response(response)
+                if questions:
+                    batch.extend(questions)
+                    self.logger.info(f"Successfully prepared {len(batch)} questions")
                 else:
-                    print("All retry attempts failed. Using fallback...")
-                    self.question_ready.emit([])  # Emit empty list as fallback
-                    return
+                    self.logger.warning("No questions could be processed from API response")
+            else:
+                self.logger.error(f"API request failed with status: {response.status_code if response else 'No response'}")
+                
+        except Exception as e:
+            self.logger.error(f"Critical error in worker execution: {str(e)}")
+            import traceback
+            self.logger.debug(f"Traceback: {traceback.format_exc()}")
+        
+        # Always emit signal, even if empty
+        self.logger.info(f"Emitting signal with {len(batch)} questions")
+        self.question_ready.emit(batch)
+
+    def _build_api_url(self):
+        """Build API URL with validated parameters"""
+        base_url = "https://opentdb.com/api.php"
+        params = [f"amount={self.count}"]
+        
+        # Add optional parameters if provided
+        if self.category_id is not None:
+            params.append(f"category={self.category_id}")
+        if self.difficulty is not None:
+            params.append(f"difficulty={self.difficulty}")
+        if self.question_type is not None:
+            params.append(f"type={self.question_type}")
+        
+        return f"{base_url}?{'&'.join(params)}"
+
+    def _make_api_request_with_retry(self, url, max_retries=AppConstants.API_MAX_RETRIES):
+        """Make API request with exponential backoff retry logic"""
+        for attempt in range(max_retries):
+            try:
+                self.logger.debug(f"API request attempt {attempt + 1}/{max_retries}")
+                response = requests.get(url, timeout=AppConstants.API_REQUEST_TIMEOUT)  # Use config timeout
+                
+                if response.status_code == 200:
+                    return response
+                elif response.status_code == 429:
+                    if attempt < max_retries - 1:
+                        wait_time = AppConstants.API_RETRY_BACKOFF_BASE ** attempt  # Use config backoff
+                        self.logger.warning(f"Rate limit hit (429). Waiting {wait_time}s before retry...")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        self.logger.error("All retry attempts failed due to rate limiting")
+                        return response
+                else:
+                    self.logger.error(f"API returned unexpected status: {response.status_code}")
+                    return response
+                    
+            except requests.exceptions.Timeout:
+                if attempt < max_retries - 1:
+                    self.logger.warning(f"Request timeout on attempt {attempt + 1}, retrying...")
+                    time.sleep(1)
+                    continue
+                else:
+                    self.logger.error("Request timed out after all retries")
+                    raise
+            except requests.exceptions.ConnectionError as e:
+                if attempt < max_retries - 1:
+                    self.logger.warning(f"Connection error on attempt {attempt + 1}: {e}, retrying...")
+                    time.sleep(1)
+                    continue
+                else:
+                    self.logger.error("Connection failed after all retries")
+                    raise
+            except Exception as e:
+                self.logger.error(f"Unexpected error during API request: {e}")
+                raise
+        
+        return None
+
+    def _process_api_response(self, response):
+        """Process API response and return list of questions"""
+        try:
+            data = response.json()
             
-            if response.status_code == 200:
-                # Parse JSON response and extract question data
-                data = response.json()["results"]
-                print(f"Got {len(data)} questions")
-                
-                # Prepare all texts for parallel translation to optimize performance
-                texts_to_translate = []
-                question_data = []
-                
-                for item in data:
-                    # Decode HTML entities in question and answer texts
+            # Validate response structure
+            if not isinstance(data, dict) or "results" not in data:
+                self.logger.error("Invalid API response structure")
+                return []
+            
+            results = data["results"]
+            if not isinstance(results, list):
+                self.logger.error("API results is not a list")
+                return []
+            
+            if len(results) == 0:
+                self.logger.warning("API returned empty results")
+                return []
+            
+            self.logger.info(f"Processing {len(results)} questions from API")
+            
+            # Prepare all texts for parallel translation
+            texts_to_translate = []
+            question_data = []
+            
+            for item in results:
+                try:
+                    # Validate item structure
+                    required_fields = ["question", "correct_answer", "incorrect_answers"]
+                    if not all(field in item for field in required_fields):
+                        self.logger.warning(f"Skipping malformed question item: missing required fields")
+                        continue
+                    
+                    # Decode HTML entities
                     question_eng = html.unescape(item["question"])
                     incorrect_answers = [html.unescape(ans) for ans in item["incorrect_answers"]]
                     correct_eng = html.unescape(item["correct_answer"])
                     
+                    # Validate answer data
+                    if not question_eng or not correct_eng:
+                        self.logger.warning("Skipping question with empty text")
+                        continue
+                    
+                    if len(incorrect_answers) < 1:
+                        self.logger.warning("Skipping question without incorrect answers")
+                        continue
+                    
                     # Combine all options and shuffle for randomization
                     options = [correct_eng] + incorrect_answers
-                    shuffled = random.sample(options, k=len(options))
+                    shuffled = random.sample(options, len(options))
                     
                     # Store the data structure
                     question_data.append({
@@ -212,65 +367,86 @@ class QuestionWorker(QThread):
                     
                     # Add all texts that need translation
                     texts_to_translate.extend([question_eng, correct_eng] + shuffled)
-                
-                print(f"Translating {len(texts_to_translate)} texts in parallel to {self.target_language}...")
-                
-                # Skip translation for English
-                if self.target_language == 'en':
-                    print("English selected, skipping translation...")
-                    translations = {text: text for text in texts_to_translate}
-                else:
-                    # Parallel translation with ThreadPoolExecutor
-                    with ThreadPoolExecutor(max_workers=8) as executor:
-                        # Submit all translation tasks
-                        future_to_text = {executor.submit(self.translate_text, text): text for text in texts_to_translate}
-                        translations = {}
-                        
-                        # Collect results as they complete
-                        completed = 0
-                        for future in as_completed(future_to_text):
-                            original_text = future_to_text[future]
-                            try:
-                                translated_text = future.result()
-                                translations[original_text] = translated_text
-                                completed += 1
-                                if completed % 5 == 0:  # Progress feedback every 5 translations
-                                    print(f"Completed {completed}/{len(texts_to_translate)} translations...")
-                            except Exception as e:
-                                print(f"Error translating '{original_text[:30]}...': {e}")
-                                translations[original_text] = original_text
-                
-                print(f"Translation completed, building questions...")
-                
-                # Build the final questions using translations
-                for data_item in question_data:
+                    
+                except Exception as e:
+                    self.logger.warning(f"Error processing question item: {e}")
+                    continue
+            
+            if not question_data:
+                self.logger.warning("No valid questions could be processed")
+                return []
+            
+            # Perform translation
+            translations = self._translate_texts(texts_to_translate)
+            
+            # Build final questions
+            questions = []
+            for data_item in question_data:
+                try:
                     question = translations.get(data_item['question_eng'], data_item['question_eng'])
                     correct = translations.get(data_item['correct_eng'], data_item['correct_eng'])
                     translated_options = [translations.get(opt, opt) for opt in data_item['shuffled']]
                     
-                    batch.append({
+                    questions.append({
                         "question": question, 
                         "options": translated_options, 
                         "answer": correct
                     })
-                
-                print(f"Prepared {len(batch)} questions")
-            else:
-                print(f"API request failed with status {response.status_code}")
-                self.question_ready.emit([])  # Emit empty list on failure
-                return
-                
-        except requests.exceptions.Timeout:
-            print("API request timed out. Please check your internet connection.")
-            self.question_ready.emit([])
-        except requests.exceptions.ConnectionError:
-            print("Connection error. Please check your internet connection.")
-            self.question_ready.emit([])
+                except Exception as e:
+                    self.logger.warning(f"Error building final question: {e}")
+                    continue
+            
+            self.logger.info(f"Successfully processed {len(questions)} questions")
+            return questions
+            
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Failed to parse API response as JSON: {e}")
+            return []
         except Exception as e:
-            print(f"Worker error {e}")
-            import traceback
-            traceback.print_exc()
-            self.question_ready.emit([])  # Emit empty list on unexpected errors
+            self.logger.error(f"Unexpected error processing API response: {e}")
+            return []
+
+    def _translate_texts(self, texts_to_translate):
+        """Translate texts with optimized parallel processing"""
+        if not texts_to_translate:
+            return {}
         
-        print("Emitting signal...")
-        self.question_ready.emit(batch)
+        self.logger.info(f"Translating {len(texts_to_translate)} texts to {self.target_language}...")
+        
+        # Skip translation for English
+        if self.target_language == 'en':
+            self.logger.debug("English selected, skipping translation...")
+            return {text: text for text in texts_to_translate}
+        
+        # Use dynamic thread pool size based on workload
+        max_workers = min(AppConstants.MAX_THREAD_POOL_WORKERS, max(2, len(texts_to_translate) // 10))
+        
+        translations = {}
+        try:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # Submit all translation tasks
+                future_to_text = {executor.submit(self.translate_text, text): text for text in texts_to_translate}
+                
+                # Collect results as they complete
+                completed = 0
+                for future in as_completed(future_to_text):
+                    original_text = future_to_text[future]
+                    try:
+                        translated_text = future.result(timeout=AppConstants.TRANSLATION_TIMEOUT)  # Use config timeout
+                        translations[original_text] = translated_text
+                        completed += 1
+                        
+                        if completed % 10 == 0:  # Progress feedback every 10 translations
+                            self.logger.debug(f"Completed {completed}/{len(texts_to_translate)} translations...")
+                            
+                    except Exception as e:
+                        self.logger.warning(f"Translation failed for '{original_text[:50]}...': {e}")
+                        translations[original_text] = original_text  # Fallback to original
+                
+        except Exception as e:
+            self.logger.error(f"Translation pool execution failed: {e}")
+            # Fallback: return all original texts
+            return {text: text for text in texts_to_translate}
+        
+        self.logger.info(f"Translation completed: {len(translations)} texts processed")
+        return translations
