@@ -81,7 +81,15 @@ class AppConstants:
     
     # Thread Management
     THREAD_TERMINATION_TIMEOUT = 5000          # Timeout for thread termination in milliseconds
-    MAX_THREAD_POOL_WORKERS = 8                # Maximum workers in translation thread pool
+
+    # Dynamic thread pool sizing based on CPU cores
+    # Import here to avoid circular imports
+    try:
+        from UTILS.thread_utils import get_optimal_thread_count
+        MAX_THREAD_POOL_WORKERS = get_optimal_thread_count("translation")
+    except ImportError:
+        # Fallback to static value if utils not available
+        MAX_THREAD_POOL_WORKERS = 8
     
     # Translation Configuration
     TRANSLATION_TIMEOUT = 30                   # Timeout for individual translations in seconds

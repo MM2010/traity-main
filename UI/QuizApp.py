@@ -10,6 +10,7 @@ from CLASSES.DifficultyModel import DifficultyModel
 from CLASSES.TypeUIFactory import TypeUIFactory
 from CLASSES.TypeModel import TypeModel
 from UI.SelectorContainer import SelectorContainer
+from UTILS.easter_egg import init_easter_eggs
 from typing import Optional
 
 import PyQt5.QtWidgets as py
@@ -266,6 +267,9 @@ class QuizApp(py.QWidget):
         
         # Set initial window size based on screen
         self._set_initial_window_size()
+        
+        # Initialize Easter eggs
+        self.easter_egg_manager = init_easter_eggs(self)
         
         # NOTE: is_initializing flag will be set to False when first questions are loaded
 
@@ -1066,6 +1070,11 @@ class QuizApp(py.QWidget):
             # Hide loading overlay if visible
             if hasattr(self, 'loading_overlay') and self.is_loading_overlay_visible:
                 self._hide_loading_overlay()
+            
+            # Cleanup Easter eggs
+            if hasattr(self, 'easter_egg_manager'):
+                print("Cleaning up Easter eggs...")
+                self.easter_egg_manager.cleanup()
             
             print("Resource cleanup completed")
             

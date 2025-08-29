@@ -8,6 +8,7 @@ from deep_translator import GoogleTranslator
 from PyQt5.QtCore import QThread, pyqtSignal
 from typing import Dict, List, Optional
 from CLASSES.CategoryModel import CategoryModel
+from UTILS.thread_utils import get_optimal_thread_count
 
 
 class CategoryWorker(QThread):
@@ -21,7 +22,7 @@ class CategoryWorker(QThread):
     error_occurred = pyqtSignal(str)  # Emesso in caso di errore
     
     API_URL = "https://opentdb.com/api_category.php"
-    MAX_WORKERS = 8  # Per traduzioni parallele
+    # MAX_WORKERS will be calculated dynamically based on CPU cores
     
     def __init__(self, category_model: CategoryModel):
         super().__init__()
@@ -102,8 +103,12 @@ class CategoryWorker(QThread):
             translated_categories = {}
             completed_count = 0
             
+            # Calculate optimal number of threads for category translation
+            optimal_threads = get_optimal_thread_count("translation")
+            print(f"Using {optimal_threads} threads for category translation (CPU cores: {optimal_threads // 2})")
+            
             # Esegui traduzioni in parallelo
-            with ThreadPoolExecutor(max_workers=self.MAX_WORKERS) as executor:
+            with ThreadPoolExecutor(max_workers=optimal_threads) as executor:
                 # Crea futures per ogni traduzione
                 future_to_category = {
                     executor.submit(self._translate_single_category, cat_name, self.target_language): cat_id

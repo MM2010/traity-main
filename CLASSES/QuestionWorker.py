@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import html
 import random
+from UTILS.thread_utils import get_optimal_thread_count
 
 
 class QuestionWorker(QThread):
@@ -82,8 +83,12 @@ class QuestionWorker(QThread):
                     print("English selected, skipping translation...")
                     translations = {text: text for text in texts_to_translate}
                 else:
+                    # Calculate optimal number of threads for translation operations
+                    optimal_threads = get_optimal_thread_count("translation")
+                    print(f"Using {optimal_threads} threads for parallel translation (CPU cores: {optimal_threads // 2})")
+
                     # Parallel translation with ThreadPoolExecutor
-                    with ThreadPoolExecutor(max_workers=8) as executor:
+                    with ThreadPoolExecutor(max_workers=optimal_threads) as executor:
                         # Submit all translation tasks
                         future_to_text = {executor.submit(self.translate_text, text): text for text in texts_to_translate}
                         translations = {}
