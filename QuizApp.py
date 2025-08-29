@@ -38,9 +38,12 @@ from GRAPHICS.styles import AppStyles                    # Centralized styling
 from CONST.constants import AppConstants                 # Configuration constants
 from CLASSES.LanguageUIFactory import LanguageUIFactory    # UI component factory
 from CLASSES.LanguageModel import LanguageModel         # Language management
+from CLASSES.GameTracker import GameTracker, PlayerProfile  # Game tracking system
+from UI.StatsDialog import show_player_stats            # Statistics dialog
 
 import PyQt5.QtWidgets as py                            # GUI components
 from PyQt5.QtCore import Qt                             # Qt core functionality
+import time                                             # For timing question responses
 
 
 class QuizApp(py.QWidget):
@@ -138,6 +141,20 @@ class QuizApp(py.QWidget):
         self.questions = []                     # List of loaded questions
         self.answered_questions = {}            # Track user answers {index: selected_answer}
         self.question_states = {}               # Track visual state of questions
+
+        # ====================================
+        # GAME TRACKING SYSTEM INITIALIZATION
+        # ====================================
+        
+        # Initialize the game tracking system
+        self.game_tracker = GameTracker()
+        
+        # Load or create default player profile
+        self.current_player = self._load_or_create_player_profile()
+        
+        # Current session tracking
+        self.current_session = None
+        self.question_start_time = None         # Track when user starts answering a question
 
         # ====================================
         # MAIN LAYOUT CONFIGURATION
@@ -260,6 +277,9 @@ class QuizApp(py.QWidget):
         # Initially hide question frame until questions are loaded
         self.question_frame.hide()
 
+        # Initialize the first game session
+        self._start_new_game_session()
+
         self.fetch_question(AppConstants.DEFAULT_QUESTION_COUNT)
 
         # self.question_option = self.get_question()
@@ -272,6 +292,145 @@ class QuizApp(py.QWidget):
         """Ensures the language selector is always visible and properly sized"""
         # Assicura semplicemente che sia visibile (non serve più ensure_visibility)
         self.language_selector.show()
+    
+    def _load_or_create_player_profile(self) -> PlayerProfile:
+        """Carica o crea un profilo giocatore predefinito"""
+        # Per ora creiamo un profilo predefinito, in futuro si potrà implementare
+        # un sistema di selezione/creazione profili più avanzato
+        profiles = self.game_tracker.list_available_profiles()
+        
+        if profiles:
+            # Carica il profilo più recente
+            latest_profile = profiles[0]  # Già ordinati per ultima partita
+            player_profile = self.game_tracker.load_player_profile(latest_profile["player_id"])
+            if player_profile:
+                print(f"Caricato profilo esistente: {player_profile.player_name}")
+                return player_profile
+        
+        # Crea un nuovo profilo se non ne esistono
+        new_profile = self.game_tracker.create_player_profile("Giocatore Quiz")
+        new_profile.save_to_file()
+        print(f"Creato nuovo profilo: {new_profile.player_name}")
+        return new_profile
+    
+    def _start_new_game_session(self, difficulty=None, question_type=None, category_id=None, category_name=None):
+        """Inizia una nuova sessione di gioco con parametri opzionali"""
+        if self.current_session:
+            # Termina la sessione precedente se esistente
+            completed_session = self.game_tracker.end_current_session()
+            if completed_session:
+                stats = completed_session.get_stats()
+                print(f"Sessione precedente terminata - Domande: {stats['total_questions']}, "
+                      f"Accuratezza: {stats['accuracy_percentage']:.1f}%")
+        
+        # Usa valori predefiniti se non specificati
+        difficulty = difficulty or "medium"
+        question_type = question_type or "multiple"
+        category_id = category_id or 9
+        category_name = category_name or "Cultura Generale"
+        
+        # Inizia la nuova sessione
+        self.current_session = self.game_tracker.start_new_session(
+            player_profile=self.current_player,
+            language=self.selected_language,
+            difficulty=difficulty,
+            question_type=question_type,
+            category_id=category_id,
+            category_name=category_name
+        )
+        
+        print(f"Nuova sessione avviata: {self.current_session.session_id[:8]}... "
+              f"({self.selected_language}, {difficulty}, {category_name}, {question_type})")
+    
+    def _handle_parameter_change(self, parameter_name: str, old_value, new_value, **session_params):
+        """
+        Gestisce il cambio di qualsiasi parametro fondamentale del quiz
+        
+        Args:
+            parameter_name: Nome del parametro che è cambiato
+            old_value: Valore precedente
+            new_value: Nuovo valore
+            **session_params: Parametri aggiuntivi per la nuova sessione
+        """
+        if old_value != new_value:
+            print(f"Parametro cambiato: {parameter_name} da '{old_value}' a '{new_value}'")
+            
+            # Reset dello stato del quiz
+            self.index = 0
+            self.last_answered_index = -1
+            self.questions = []
+            self.answered_questions = {}
+            self.question_states = {}
+            self.score = 0
+            
+            # Reset stats UI
+            self.correct_count = 0
+            self.wrong_count = 0
+            self.correct_count_text.setText("")
+            self.wrong_count_text.setText("")
+            self.right_answer.setText("")
+            self.stats_container.hide()
+            
+            # Mostra loading
+            self._update_loading_text('loading_initial')
+            self.loading_label.show()
+            
+            # Nascondi UI elementi
+            self.question_frame.hide()
+            self.label.hide()
+            for btn in self.option_buttons:
+                btn.hide()
+            self.next_btn.hide()
+            self.previous_btn.hide()
+            self.skip_to_next_btn.hide()
+            
+            # Mantieni language selector visibile
+            self.ensure_language_selector_visible()
+            
+            # Reset flag di fetching
+            self.is_fetching = False
+            
+            # Avvia nuova sessione con i parametri aggiornati
+            self._start_new_game_session(**session_params)
+            
+            # Fetch nuove domande
+            self.fetch_question(AppConstants.DEFAULT_QUESTION_COUNT)
+    
+    def closeEvent(self, event):
+        """Override closeEvent per salvare la sessione quando l'app viene chiusa"""
+        if self.current_session:
+            completed_session = self.game_tracker.end_current_session()
+            if completed_session:
+                stats = completed_session.get_stats()
+                print(f"Sessione salvata - Domande: {stats['total_questions']}, "
+                      f"Accuratezza: {stats['accuracy_percentage']:.1f}%")
+        
+        # Chiama il metodo della classe padre
+        super().closeEvent(event)
+    
+    def show_player_stats(self):
+        """Mostra le statistiche del giocatore corrente"""
+        if self.current_player:
+            # Mostra il dialog delle statistiche
+            show_player_stats(self.current_player, self)
+            
+            # Opzionalmente stampa anche nel terminale per debug
+            overall_stats = self.current_player.get_overall_stats()
+            print("\n" + "="*50)
+            print(f"STATISTICHE GIOCATORE: {overall_stats['player_name']}")
+            print("="*50)
+            print(f"Sessioni totali: {overall_stats['total_sessions']}")
+            print(f"Domande totali: {overall_stats['total_questions']}")
+            print(f"Accuratezza complessiva: {overall_stats['overall_accuracy']:.1f}%")
+            if overall_stats['favorite_category']:
+                print(f"Categoria preferita: {overall_stats['favorite_category']}")
+            if overall_stats['best_category']:
+                print(f"Migliore categoria: {overall_stats['best_category']} "
+                      f"({overall_stats['best_category_accuracy']:.1f}%)")
+            print("="*50)
+            
+            return overall_stats
+        return None
     
     def _update_window_title(self):
         """Aggiorna il titolo della finestra"""
@@ -309,46 +468,61 @@ class QuizApp(py.QWidget):
         """Handle language change from the LanguageSelector component"""
         if new_language != self.selected_language:
             self.selected_language = new_language
-            # Reset the quiz with new language
-            self.index = 0
-            self.last_answered_index = -1
-            self.questions = []
-            self.answered_questions = {}
-            self.question_states = {}
-            self.score = 0
             
-            # Reset stats
-            self.correct_count = 0
-            self.wrong_count = 0
-            self.correct_count_text.setText("")
-            self.wrong_count_text.setText("")
-            self.right_answer.setText("")
-            self.stats_container.hide()  # Hide stats container
-            
-            # Get language name for display
-            lang_name = self.language_model.get_language_name(new_language)
-            
-            # Show loading with translated text
-            self._update_loading_text('loading_language', lang_name)
-            self.loading_label.show()
-            
-            # Keep language selector always visible
-            self.ensure_language_selector_visible()
-            
-            # Hide existing UI elements
-            self.question_frame.hide()
-            self.label.hide()
-            for btn in self.option_buttons:
-                btn.hide()
-            self.next_btn.hide()
-            self.previous_btn.hide()
-            self.skip_to_next_btn.hide()
-            
-            # Reset fetching flag to allow new fetch
-            self.is_fetching = False
-            
-            # Fetch new questions in the selected language
-            self.fetch_question(AppConstants.DEFAULT_QUESTION_COUNT)
+            # Usa il nuovo sistema generico per gestire il cambio
+            self._handle_parameter_change(
+                parameter_name="lingua",
+                old_value=old_language,
+                new_value=new_language,
+                # Parametri per la nuova sessione (mantieni defaults per ora)
+                difficulty="medium",
+                question_type="multiple", 
+                category_id=9,
+                category_name="Cultura Generale"
+            )
+    
+    def on_category_changed(self, old_category_id: int, new_category_id: int, category_name: str = None):
+        """Handle category change"""
+        category_name = category_name or f"Categoria {new_category_id}"
+        
+        self._handle_parameter_change(
+            parameter_name="categoria",
+            old_value=old_category_id,
+            new_value=new_category_id,
+            # Mantieni lingua corrente, aggiorna categoria
+            difficulty="medium",
+            question_type="multiple",
+            category_id=new_category_id,
+            category_name=category_name
+        )
+    
+    def on_difficulty_changed(self, old_difficulty: str, new_difficulty: str):
+        """Handle difficulty change"""
+        
+        self._handle_parameter_change(
+            parameter_name="difficoltà",
+            old_value=old_difficulty,
+            new_value=new_difficulty,
+            # Mantieni altri parametri, aggiorna difficoltà
+            difficulty=new_difficulty,
+            question_type="multiple",
+            category_id=9,
+            category_name="Cultura Generale"
+        )
+    
+    def on_type_changed(self, old_type: str, new_type: str):
+        """Handle question type change"""
+        
+        self._handle_parameter_change(
+            parameter_name="tipo domanda",
+            old_value=old_type,
+            new_value=new_type,
+            # Mantieni altri parametri, aggiorna tipo
+            difficulty="medium",
+            question_type=new_type,
+            category_id=9,
+            category_name="Cultura Generale"
+        )
 
     def fetch_question(self, count=5):
         if not self.is_fetching:
@@ -448,6 +622,9 @@ class QuizApp(py.QWidget):
             for btn in self.option_buttons:
                 btn.show()
                 btn.setEnabled(True)
+            
+            # Start timing for new questions (not previously answered)
+            self.question_start_time = time.time()
         
         # Final check to ensure language selector remains visible and properly sized
         self.ensure_language_selector_visible()
@@ -538,6 +715,25 @@ class QuizApp(py.QWidget):
             
             # Update last answered index - this is the key fix!
             self.last_answered_index = self.index
+            
+            # Calculate response time
+            response_time = time.time() - self.question_start_time if self.question_start_time else 0.0
+            
+            # Get question data for tracking
+            current_question = self.questions[self.index]
+            
+            # Record the answer in the game tracker
+            if self.current_session:
+                self.game_tracker.record_question_answer(
+                    question_text=current_question["question"],
+                    correct_answer=current_question["answer"],
+                    user_answer=sender.text(),
+                    time_taken=response_time,
+                    category=current_question.get("category", "Cultura Generale"),
+                    category_id=current_question.get("category_id", 9),
+                    difficulty=current_question.get("difficulty", "medium"),
+                    question_type=current_question.get("type", "multiple")
+                )
             
             if sender.text() == self.questions[self.index]["answer"]:
                 self.score += 1
