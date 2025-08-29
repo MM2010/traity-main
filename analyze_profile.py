@@ -2,7 +2,7 @@
 """
 Analizza il profilo del giocatore salvato
 """
-
+#commento
 import json
 from pathlib import Path
 
