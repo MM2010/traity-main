@@ -28,7 +28,54 @@ from PyQt5.QtGui import QIcon
 
 
 class QuizApp(py.QMainWindow):
+    """
+    Main Quiz Application Window
+    
+    This class represents the primary GUI window for the Traity quiz application.
+    It manages the complete user interface, handles user interactions, and coordinates
+    between different components including question loading, answer validation,
+    statistics tracking, and multiplayer functionality.
+    
+    Key Features:
+    - Multi-language support with dynamic UI updates
+    - Responsive design that adapts to screen size
+    - Achievement system integration
+    - Statistics tracking and display
+    - Multiplayer support via P2P
+    - Settings management
+    - Loading overlays for async operations
+    
+    Attributes:
+        language_model (LanguageModel): Manages language selection and UI text
+        category_model (CategoryModel): Handles quiz category selection
+        difficulty_model (DifficultyModel): Manages difficulty level selection
+        type_model (TypeModel): Controls question type selection
+        achievement_manager (AchievementManager): Tracks player achievements
+        settings_manager (SettingsManager): Manages user preferences
+        game_tracker (GameTracker): Tracks game sessions and statistics
+        is_initializing (bool): Flag for initialization state
+        is_loading_questions (bool): Flag for question loading state
+    
+    The class follows the MVC pattern with separate models for different
+    aspects of the application state.
+    """
+    
     def __init__(self):
+        """
+        Initialize the Quiz Application Window
+        
+        Sets up the complete GUI interface including:
+        - Language, category, difficulty, and type models
+        - Achievement and settings managers
+        - Game tracking system
+        - Player profile initialization
+        - Window properties (title, icon, size)
+        - Callback registrations for model changes
+        - Responsive sizing based on screen dimensions
+        
+        The initialization process ensures all components are properly
+        connected and the UI is ready for user interaction.
+        """
         super().__init__()
         
         # Flag to track initialization state

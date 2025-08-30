@@ -27,7 +27,31 @@ from dataclasses import dataclass, asdict
 
 @dataclass
 class SMTPConfig:
-    """SMTP configuration data structure."""
+    """
+    SMTP configuration data structure with validation and serialization.
+
+    This dataclass represents all necessary SMTP configuration parameters
+    for email sending functionality. It includes server settings, authentication
+    options, and sender information.
+
+    Attributes:
+        smtp_server (str): SMTP server hostname or IP address
+        smtp_port (int): SMTP server port number (typically 587 for TLS, 465 for SSL)
+        use_tls (bool): Whether to use TLS/STARTTLS encryption (recommended: True)
+        sender_email (str): Email address used for SMTP authentication
+        sender_name (str): Display name for the sender
+        use_authentication (bool): Whether SMTP server requires authentication
+
+    Example:
+        >>> config = SMTPConfig(
+        ...     smtp_server="smtp.gmail.com",
+        ...     smtp_port=587,
+        ...     use_tls=True,
+        ...     sender_email="user@gmail.com",
+        ...     sender_name="John Doe",
+        ...     use_authentication=True
+        ... )
+    """
     smtp_server: str
     smtp_port: int
     use_tls: bool = True
@@ -36,24 +60,66 @@ class SMTPConfig:
     use_authentication: bool = True
 
     def to_dict(self) -> Dict:
-        """Convert config to dictionary."""
+        """
+        Convert configuration to dictionary for JSON serialization.
+
+        Returns:
+            Dict: Dictionary representation of the configuration
+
+        Example:
+            >>> config = SMTPConfig(smtp_server="smtp.gmail.com", smtp_port=587)
+            >>> config_dict = config.to_dict()
+            >>> # {'smtp_server': 'smtp.gmail.com', 'smtp_port': 587, ...}
+        """
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: Dict) -> 'SMTPConfig':
-        """Create config from dictionary."""
+        """
+        Create SMTPConfig instance from dictionary data.
+
+        Args:
+            data (Dict): Dictionary containing SMTP configuration data
+
+        Returns:
+            SMTPConfig: New SMTPConfig instance
+
+        Example:
+            >>> data = {'smtp_server': 'smtp.gmail.com', 'smtp_port': 587}
+            >>> config = SMTPConfig.from_dict(data)
+        """
         return cls(**data)
 
 
 class SMTPConfigManager:
     """
-    Manages SMTP configuration with secure storage and validation.
+    Manages SMTP configuration with secure storage, validation, and preset support.
 
-    This class provides:
-    - Loading/saving SMTP configurations
+    This class provides comprehensive SMTP configuration management including:
+    - Persistent storage of SMTP settings in JSON format
+    - Secure credential management (with encryption recommendations)
     - Preset configurations for popular email providers
-    - Configuration validation
-    - Secure credential handling
+    - Configuration validation and connection testing
+    - Automatic loading of existing configurations
+
+    The manager supports multiple email providers out-of-the-box and allows
+    custom SMTP server configurations. Credentials are stored securely
+    (though encryption should be added for production use).
+
+    Attributes:
+        CONFIG_FILE (str): Path to SMTP configuration file
+        PRESETS (Dict): Dictionary of preset configurations for popular providers
+        config_dir (Path): Directory for configuration files
+        config_file (Path): Path to SMTP configuration JSON file
+        credentials_file (Path): Path to credentials JSON file
+        current_config (Optional[SMTPConfig]): Currently loaded SMTP configuration
+        credentials (Dict[str, str]): Stored email credentials
+
+    Example:
+        >>> manager = SMTPConfigManager()
+        >>> if manager.is_configured():
+        ...     config = manager.current_config
+        ...     print(f"SMTP server: {config.smtp_server}")
     """
 
     CONFIG_FILE = "data/smtp_config.json"
@@ -91,7 +157,15 @@ class SMTPConfigManager:
     }
 
     def __init__(self):
-        """Initialize the SMTP configuration manager."""
+        """
+        Initialize the SMTP configuration manager.
+
+        Creates necessary directories, sets up file paths, and loads
+        existing configuration and credentials from disk.
+
+        Returns:
+            None
+        """
         self.config_dir = Path("data")
         self.config_file = Path(self.CONFIG_FILE)
         self.credentials_file = Path("data/smtp_credentials.json")
@@ -107,10 +181,22 @@ class SMTPConfigManager:
 
     def load_config(self) -> bool:
         """
-        Load SMTP configuration from file.
+        Load SMTP configuration from persistent storage.
+
+        Attempts to load SMTP configuration from the JSON configuration file.
+        If the file doesn't exist or is corrupted, creates a default Gmail
+        configuration. The loaded configuration becomes the current_config.
 
         Returns:
-            bool: True if configuration loaded successfully, False otherwise
+            bool: True if configuration was loaded from file, False if default was created
+
+        Example:
+            >>> manager = SMTPConfigManager()
+            >>> loaded = manager.load_config()
+            >>> if loaded:
+            ...     print("Configuration loaded from file")
+            ... else:
+            ...     print("Default configuration created")
         """
         try:
             if self.config_file.exists():

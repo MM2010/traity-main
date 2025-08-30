@@ -18,30 +18,68 @@ from CONST.constants import AppConstants
 
 
 class AchievementType(Enum):
-    """Tipi di achievement disponibili"""
-    QUESTIONS_ANSWERED = "questions_answered"
-    CORRECT_ANSWERS = "correct_answers"
-    PERFECT_SESSION = "perfect_session"
-    SPEED_DEMON = "speed_demon"
-    STREAK_MASTER = "streak_master"
-    CATEGORY_MASTER = "category_master"
-    LANGUAGE_EXPLORER = "language_explorer"
-    SOCIAL_SHARER = "social_sharer"
-    MULTIPLAYER_WINNER = "multiplayer_winner"
-    DAILY_PLAYER = "daily_player"
+    """
+    Tipi di achievement disponibili nel sistema.
+    
+    Ogni tipo rappresenta una categoria diversa di obiettivi che il giocatore
+    può raggiungere attraverso diverse azioni nel gioco.
+    """
+    QUESTIONS_ANSWERED = "questions_answered"  # Numero di domande risposte
+    CORRECT_ANSWERS = "correct_answers"       # Numero di risposte corrette
+    PERFECT_SESSION = "perfect_session"       # Sessione con 100% di accuratezza
+    SPEED_DEMON = "speed_demon"              # Risposte veloci (< 3 secondi)
+    STREAK_MASTER = "streak_master"          # Serie di risposte consecutive
+    CATEGORY_MASTER = "category_master"      # Esplorazione di categorie
+    LANGUAGE_EXPLORER = "language_explorer"  # Uso di lingue diverse
+    SOCIAL_SHARER = "social_sharer"          # Condivisione risultati
+    MULTIPLAYER_WINNER = "multiplayer_winner" # Vittorie multiplayer
+    DAILY_PLAYER = "daily_player"            # Gioco giornaliero
 
 
 class AchievementRarity(Enum):
-    """Livelli di rarità degli achievement"""
-    COMMON = "common"
-    RARE = "rare"
-    EPIC = "epic"
-    LEGENDARY = "legendary"
+    """
+    Livelli di rarità degli achievement.
+    
+    La rarità determina la difficoltà e il prestigio dell'achievement,
+    influenzando anche i punti premio assegnati.
+    """
+    COMMON = "common"        # Achievement comuni, facili da ottenere
+    RARE = "rare"           # Achievement rari, richiedono impegno
+    EPIC = "epic"           # Achievement epici, molto impegnativi
+    LEGENDARY = "legendary" # Achievement leggendari, estremamente difficili
 
 
 @dataclass
 class AchievementDefinition:
-    """Definizione di un achievement"""
+    """
+    Definizione di un achievement con tutte le sue proprietà.
+    
+    Questa classe rappresenta la definizione statica di un achievement,
+    contenente tutte le informazioni necessarie per descriverlo e valutarlo.
+    
+    Attributes:
+        achievement_id (str): ID univoco dell'achievement
+        name (Dict[str, str]): Nomi tradotti nelle diverse lingue supportate
+        description (Dict[str, str]): Descrizioni tradotte
+        achievement_type (AchievementType): Tipo/categoria dell'achievement
+        rarity (AchievementRarity): Livello di rarità
+        target_value (int): Valore target da raggiungere
+        icon_emoji (str): Emoji rappresentativo dell'achievement
+        reward_points (int): Punti premio per lo sblocco
+        hidden (bool): Se l'achievement è nascosto fino allo sblocco
+    
+    Example:
+        >>> achievement = AchievementDefinition(
+        ...     achievement_id="first_question",
+        ...     name={'it': "Primo Passo", 'en': "First Step"},
+        ...     description={'it': "Rispondi alla tua prima domanda"},
+        ...     achievement_type=AchievementType.QUESTIONS_ANSWERED,
+        ...     rarity=AchievementRarity.COMMON,
+        ...     target_value=1,
+        ...     icon_emoji="🎯",
+        ...     reward_points=10
+        ... )
+    """
     achievement_id: str
     name: Dict[str, str]  # Traduzioni del nome
     description: Dict[str, str]  # Traduzioni della descrizione
@@ -53,24 +91,82 @@ class AchievementDefinition:
     hidden: bool = False
 
     def get_name(self, language: str = 'it') -> str:
-        """Ottiene il nome tradotto"""
+        """
+        Ottiene il nome tradotto dell'achievement.
+        
+        Args:
+            language (str): Codice della lingua desiderata (default: 'it').
+            
+        Returns:
+            str: Nome dell'achievement nella lingua richiesta, o in inglese
+                se la lingua non è disponibile.
+                
+        Example:
+            >>> achievement.get_name('it')
+            'Primo Passo'
+            >>> achievement.get_name('fr')
+            'First Step'  # Fallback all'inglese
+        """
         return self.name.get(language, self.name.get('en', self.achievement_id))
 
     def get_description(self, language: str = 'it') -> str:
-        """Ottiene la descrizione tradotta"""
+        """
+        Ottiene la descrizione tradotta dell'achievement.
+        
+        Args:
+            language (str): Codice della lingua desiderata (default: 'it').
+            
+        Returns:
+            str: Descrizione dell'achievement nella lingua richiesta,
+                o stringa vuota se non disponibile.
+                
+        Example:
+            >>> achievement.get_description('it')
+            'Rispondi alla tua prima domanda'
+        """
         return self.description.get(language, self.description.get('en', ''))
 
 
 @dataclass
 class PlayerAchievement:
-    """Achievement ottenuto da un giocatore"""
+    """
+    Achievement ottenuto da un giocatore con il suo progresso.
+    
+    Questa classe traccia lo stato di un achievement per un giocatore specifico,
+    inclusi il progresso attuale e la data di sblocco.
+    
+    Attributes:
+        achievement_id (str): ID dell'achievement
+        unlocked_at (datetime): Data e ora dello sblocco
+        progress_value (int): Valore di progresso attuale
+        is_completed (bool): Se l'achievement è stato completato
+    
+    Example:
+        >>> player_ach = PlayerAchievement(
+        ...     achievement_id="first_question",
+        ...     unlocked_at=datetime.now(),
+        ...     progress_value=1,
+        ...     is_completed=True
+        ... )
+    """
     achievement_id: str
     unlocked_at: datetime
     progress_value: int = 0
     is_completed: bool = False
 
     def to_dict(self) -> Dict:
-        """Converte in dizionario per serializzazione"""
+        """
+        Converte l'achievement del giocatore in dizionario per serializzazione.
+        
+        Returns:
+            Dict: Dizionario contenente tutti i campi dell'achievement
+                pronto per essere salvato in JSON.
+                
+        Example:
+            >>> data = player_ach.to_dict()
+            >>> print(data['achievement_id'])
+            'first_question'
+        """
         return {
             "achievement_id": self.achievement_id,
             "unlocked_at": self.unlocked_at.isoformat(),
@@ -80,7 +176,24 @@ class PlayerAchievement:
 
     @classmethod
     def from_dict(cls, data: Dict) -> 'PlayerAchievement':
-        """Crea da dizionario"""
+        """
+        Crea un PlayerAchievement da un dizionario deserializzato.
+        
+        Args:
+            data (Dict): Dizionario contenente i dati dell'achievement,
+                tipicamente ottenuto dalla deserializzazione di JSON.
+                
+        Returns:
+            PlayerAchievement: Istanza ricostruita dai dati del dizionario.
+            
+        Raises:
+            KeyError: Se mancano campi obbligatori nel dizionario.
+            ValueError: Se i dati non sono nel formato corretto.
+            
+        Example:
+            >>> data = {'achievement_id': 'first_question', 'progress_value': 1}
+            >>> player_ach = PlayerAchievement.from_dict(data)
+        """
         return cls(
             achievement_id=data["achievement_id"],
             unlocked_at=datetime.fromisoformat(data["unlocked_at"]),
@@ -92,10 +205,38 @@ class PlayerAchievement:
 class AchievementManager:
     """
     Gestore principale del sistema achievement.
-    Gestisce definizioni, progressi e notifiche.
+    
+    Questa classe coordina tutto il sistema di achievement dell'applicazione,
+    gestendo le definizioni, i progressi dei giocatori, il salvataggio/caricamento
+    dei dati e le notifiche di sblocco.
+    
+    Attributes:
+        data_dir (Path): Directory dove vengono salvati i dati degli achievement
+        achievements_file (Path): File per salvare le definizioni degli achievement
+        player_achievements_file (Path): File per salvare i progressi del giocatore
+        on_achievement_unlocked (Optional[Callable]): Callback per notifiche di sblocco
+        achievement_definitions (Dict[str, AchievementDefinition]): Definizioni di tutti gli achievement
+        player_achievements (Dict[str, PlayerAchievement]): Progressi del giocatore
+    
+    Example:
+        >>> manager = AchievementManager()
+        >>> unlocked = manager.update_progress(AchievementType.QUESTIONS_ANSWERED, 5)
+        >>> if unlocked:
+        ...     print(f"Sbloccati {len(unlocked)} achievement!")
     """
 
     def __init__(self, data_dir: str = "data"):
+        """
+        Inizializza il gestore degli achievement.
+        
+        Args:
+            data_dir (str): Percorso della directory per i dati (default: "data").
+                Verrà creata automaticamente se non esiste.
+                
+        Example:
+            >>> manager = AchievementManager()  # Usa directory predefinita
+            >>> manager = AchievementManager("custom/data")  # Directory personalizzata
+        """
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(exist_ok=True)
         self.achievements_file = self.data_dir / "achievements.json"
@@ -597,15 +738,55 @@ class AchievementManager:
             print(f"Errore nel salvataggio degli achievement: {e}")
 
     def get_achievement(self, achievement_id: str) -> Optional[AchievementDefinition]:
-        """Ottiene la definizione di un achievement"""
+        """
+        Ottiene la definizione di un achievement.
+        
+        Args:
+            achievement_id (str): ID univoco dell'achievement da recuperare.
+            
+        Returns:
+            Optional[AchievementDefinition]: La definizione dell'achievement,
+                o None se non trovato.
+                
+        Example:
+            >>> achievement = manager.get_achievement("first_question")
+            >>> if achievement:
+            ...     print(f"Trovato: {achievement.get_name('it')}")
+        """
         return self.achievement_definitions.get(achievement_id)
 
     def get_player_achievement(self, achievement_id: str) -> Optional[PlayerAchievement]:
-        """Ottiene il progresso di un achievement per il giocatore"""
+        """
+        Ottiene il progresso di un achievement per il giocatore.
+        
+        Args:
+            achievement_id (str): ID dell'achievement di cui ottenere il progresso.
+            
+        Returns:
+            Optional[PlayerAchievement]: Il progresso del giocatore per quell'achievement,
+                o None se non è stato mai iniziato.
+                
+        Example:
+            >>> progress = manager.get_player_achievement("first_question")
+            >>> if progress and progress.is_completed:
+            ...     print("Achievement completato!")
+        """
         return self.player_achievements.get(achievement_id)
 
     def is_achievement_unlocked(self, achievement_id: str) -> bool:
-        """Verifica se un achievement è stato sbloccato"""
+        """
+        Verifica se un achievement è stato sbloccato.
+        
+        Args:
+            achievement_id (str): ID dell'achievement da verificare.
+            
+        Returns:
+            bool: True se l'achievement è stato sbloccato, False altrimenti.
+            
+        Example:
+            >>> if manager.is_achievement_unlocked("perfect_score"):
+            ...     print("Hai ottenuto un punteggio perfetto!")
+        """
         player_ach = self.get_player_achievement(achievement_id)
         return player_ach is not None and player_ach.is_completed
 
@@ -613,7 +794,26 @@ class AchievementManager:
                        context: Dict = None) -> List[AchievementDefinition]:
         """
         Aggiorna il progresso per un tipo di achievement.
-        Ritorna la lista degli achievement appena sbloccati.
+        
+        Questo metodo principale viene chiamato quando il giocatore compie
+        un'azione che può contribuire al progresso degli achievement.
+        
+        Args:
+            achievement_type (AchievementType): Tipo di achievement da aggiornare.
+            value (int): Valore da aggiungere al progresso (default: 1).
+            context (Dict, optional): Contesto aggiuntivo per l'aggiornamento.
+            
+        Returns:
+            List[AchievementDefinition]: Lista degli achievement appena sbloccati
+                durante questo aggiornamento.
+                
+        Example:
+            >>> unlocked = manager.update_progress(
+            ...     AchievementType.QUESTIONS_ANSWERED, 
+            ...     value=5
+            ... )
+            >>> for ach in unlocked:
+            ...     print(f"Sbloccato: {ach.get_name('it')}")
         """
         context = context or {}
         unlocked_achievements = []
@@ -658,7 +858,19 @@ class AchievementManager:
         return unlocked_achievements
 
     def get_completed_achievements(self) -> List[AchievementDefinition]:
-        """Ottiene tutti gli achievement completati"""
+        """
+        Ottiene tutti gli achievement completati dal giocatore.
+        
+        Returns:
+            List[AchievementDefinition]: Lista degli achievement completati,
+                ordinati per rarità (leggendari prima).
+                
+        Example:
+            >>> completed = manager.get_completed_achievements()
+            >>> print(f"Hai completato {len(completed)} achievement")
+            >>> for ach in completed[:3]:  # Primi 3
+            ...     print(f"- {ach.get_name('it')}")
+        """
         completed = []
         for ach_id, player_ach in self.player_achievements.items():
             if player_ach.is_completed:
@@ -668,7 +880,17 @@ class AchievementManager:
         return sorted(completed, key=lambda x: x.rarity.value, reverse=True)
 
     def get_total_points(self) -> int:
-        """Calcola il totale dei punti ottenuti"""
+        """
+        Calcola il totale dei punti ottenuti dagli achievement sbloccati.
+        
+        Returns:
+            int: Somma totale dei punti premio di tutti gli achievement
+                completati dal giocatore.
+                
+        Example:
+            >>> points = manager.get_total_points()
+            >>> print(f"Hai ottenuto {points} punti totali!")
+        """
         total = 0
         for ach_id, player_ach in self.player_achievements.items():
             if player_ach.is_completed:
@@ -678,16 +900,50 @@ class AchievementManager:
         return total
 
     def get_completion_percentage(self) -> float:
-        """Calcola la percentuale di completamento"""
+        """
+        Calcola la percentuale di completamento degli achievement.
+        
+        Returns:
+            float: Percentuale di achievement completati (0.0-100.0).
+            
+        Example:
+            >>> percentage = manager.get_completion_percentage()
+            >>> print(f"Completamento: {percentage:.1f}%")
+        """
         total_achievements = len(self.achievement_definitions)
         completed_count = len([ach for ach in self.player_achievements.values() if ach.is_completed])
         return (completed_count / total_achievements) * 100 if total_achievements > 0 else 0
 
     def get_achievements_by_rarity(self, rarity: AchievementRarity) -> List[AchievementDefinition]:
-        """Ottiene gli achievement per rarità"""
+        """
+        Ottiene tutti gli achievement di una specifica rarità.
+        
+        Args:
+            rarity (AchievementRarity): La rarità degli achievement da recuperare.
+            
+        Returns:
+            List[AchievementDefinition]: Lista di tutti gli achievement
+                della rarità specificata.
+                
+        Example:
+            >>> legendary = manager.get_achievements_by_rarity(AchievementRarity.LEGENDARY)
+            >>> print(f"Achievement leggendari: {len(legendary)}")
+        """
         return [ach for ach in self.achievement_definitions.values() if ach.rarity == rarity]
 
     def reset_all_progress(self):
-        """Resetta tutto il progresso (per debug/testing)"""
+        """
+        Resetta tutto il progresso degli achievement.
+        
+        Questo metodo cancella tutti i progressi del giocatore e li salva.
+        Utile per debug e testing, ma attenzione: i dati verranno persi!
+        
+        Warning:
+            Questo metodo elimina definitivamente tutti i progressi.
+            Usarlo solo per scopi di sviluppo/testing.
+            
+        Example:
+            >>> manager.reset_all_progress()  # Cancella tutto il progresso
+        """
         self.player_achievements.clear()
         self._save_player_achievements()

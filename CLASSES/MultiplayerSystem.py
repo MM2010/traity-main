@@ -23,7 +23,26 @@ from CLASSES.GameTracker import GameSession, QuestionResult
 
 
 class MultiplayerGameState(Enum):
-    """Stati del gioco multiplayer"""
+    """
+    Stati possibili di una sessione di gioco multiplayer.
+    
+    Questa enumerazione definisce tutti gli stati attraverso cui può passare
+    una partita multiplayer, dalla creazione alla conclusione.
+    
+    Attributes:
+        WAITING_FOR_PLAYERS (str): In attesa che i giocatori si uniscano
+        STARTING (str): Il gioco sta per iniziare
+        IN_PROGRESS (str): Partita in corso
+        QUESTION_ACTIVE (str): Domanda attiva, giocatori possono rispondere
+        WAITING_ANSWERS (str): In attesa delle risposte dei giocatori
+        SHOWING_RESULTS (str): Mostra i risultati della domanda
+        FINISHED (str): Partita terminata
+    
+    Example:
+        >>> state = MultiplayerGameState.WAITING_FOR_PLAYERS
+        >>> if state == MultiplayerGameState.WAITING_FOR_PLAYERS:
+        ...     print("In attesa di giocatori")
+    """
     WAITING_FOR_PLAYERS = "waiting"
     STARTING = "starting"
     IN_PROGRESS = "in_progress"
@@ -34,10 +53,47 @@ class MultiplayerGameState(Enum):
 
 
 class PlayerConnection:
-    """Rappresenta una connessione giocatore"""
+    """
+    Rappresenta una connessione attiva di un giocatore nel sistema multiplayer.
+    
+    Questa classe gestisce tutte le informazioni e le operazioni relative
+    a un singolo giocatore connesso, inclusi socket, stato del gioco,
+    punteggi e comunicazione.
+    
+    Attributes:
+        socket (socket.socket): Socket di connessione del giocatore
+        address (Tuple[str, int]): Indirizzo IP e porta del giocatore
+        player_id (str): ID univoco del giocatore
+        player_name (str): Nome visualizzato del giocatore
+        connected_at (datetime): Timestamp di connessione
+        last_ping (datetime): Ultimo ping ricevuto
+        is_ready (bool): Stato ready del giocatore
+        current_answer (Optional[str]): Risposta corrente alla domanda
+        answer_time (Optional[float]): Tempo impiegato per rispondere (secondi)
+        score (int): Punteggio totale del giocatore
+    
+    Example:
+        >>> import socket
+        >>> sock = socket.socket()
+        >>> player = PlayerConnection(sock, ('192.168.1.1', 12345), 'player_123', 'Mario')
+        >>> player.send_message('welcome', {'message': 'Benvenuto!'})
+    """
 
     def __init__(self, client_socket: socket.socket, address: Tuple[str, int],
                  player_id: str, player_name: str):
+        """
+        Inizializza una nuova connessione giocatore.
+        
+        Args:
+            client_socket (socket.socket): Socket di connessione del client
+            address (Tuple[str, int]): Tupla (IP, porta) del client
+            player_id (str): ID univoco del giocatore
+            player_name (str): Nome del giocatore
+        
+        Example:
+            >>> sock = socket.socket()
+            >>> player = PlayerConnection(sock, ('localhost', 8888), 'p1', 'Alice')
+        """
         self.socket = client_socket
         self.address = address
         self.player_id = player_id
@@ -49,8 +105,22 @@ class PlayerConnection:
         self.answer_time: Optional[float] = None
         self.score = 0
 
-    def send_message(self, message_type: str, data: Dict):
-        """Invia un messaggio al giocatore"""
+    def send_message(self, message_type: str, data: Dict) -> bool:
+        """
+        Invia un messaggio JSON al giocatore attraverso il socket.
+        
+        Args:
+            message_type (str): Tipo di messaggio (es. 'question', 'result')
+            data (Dict): Dati del messaggio da inviare
+        
+        Returns:
+            bool: True se il messaggio è stato inviato correttamente, False altrimenti
+        
+        Example:
+            >>> success = player.send_message('question', {'text': 'Qual è la capitale?', 'options': ['Roma', 'Milano']})
+            >>> if success:
+            ...     print("Messaggio inviato")
+        """
         try:
             message = {
                 "type": message_type,
@@ -64,8 +134,16 @@ class PlayerConnection:
             print(f"Errore nell'invio messaggio a {self.player_name}: {e}")
             return False
 
-    def disconnect(self):
-        """Disconnette il giocatore"""
+    def disconnect(self) -> None:
+        """
+        Disconnette il giocatore chiudendo il socket.
+        
+        Chiude la connessione socket in modo sicuro, gestendo eventuali
+        eccezioni che potrebbero verificarsi durante la chiusura.
+        
+        Example:
+            >>> player.disconnect()  # Chiude la connessione del giocatore
+        """
         try:
             self.socket.close()
         except:
@@ -74,7 +152,51 @@ class PlayerConnection:
 
 @dataclass
 class MultiplayerSession:
-    """Sessione di gioco multiplayer"""
+    """
+    Rappresenta una sessione di gioco multiplayer completa.
+    
+    Questa classe gestisce tutti gli aspetti di una partita multiplayer,
+    inclusi giocatori, stato del gioco, domande, punteggi e sincronizzazione.
+    
+    Attributes:
+        session_id (str): ID univoco della sessione
+        host_player_id (str): ID del giocatore host
+        host_player_name (str): Nome del giocatore host
+        language (str): Lingua del gioco
+        difficulty (str): Difficoltà delle domande
+        question_type (str): Tipo di domande ('multiple', 'boolean')
+        category_id (Optional[int]): ID della categoria selezionata
+        category_name (str): Nome della categoria
+        max_players (int): Numero massimo di giocatori
+        questions_per_game (int): Numero di domande per partita
+        time_limit_per_question (int): Tempo limite per domanda (secondi)
+        
+        state (MultiplayerGameState): Stato corrente del gioco
+        current_question_index (int): Indice della domanda corrente
+        current_question (Optional[Dict]): Domanda attualmente attiva
+        current_question_start_time (Optional[datetime]): Timestamp inizio domanda
+        
+        players (Dict[str, PlayerConnection]): Giocatori connessi
+        ready_players (set): Set degli ID giocatori pronti
+        
+        questions (List[Dict]): Lista delle domande del gioco
+        question_results (List[Dict]): Risultati delle domande
+        
+        created_at (datetime): Timestamp di creazione
+        started_at (Optional[datetime]): Timestamp di inizio partita
+        finished_at (Optional[datetime]): Timestamp di fine partita
+    
+    Example:
+        >>> session = MultiplayerSession(
+        ...     session_id='sess_123',
+        ...     host_player_id='host_456',
+        ...     host_player_name='Mario',
+        ...     language='it',
+        ...     difficulty='medium',
+        ...     question_type='multiple'
+        ... )
+        >>> session.add_player(player_connection)
+    """
 
     session_id: str
     host_player_id: str
@@ -108,46 +230,120 @@ class MultiplayerSession:
     finished_at: Optional[datetime] = None
 
     def add_player(self, player: PlayerConnection) -> bool:
-        """Aggiunge un giocatore alla sessione"""
+        """
+        Aggiunge un giocatore alla sessione.
+        
+        Args:
+            player (PlayerConnection): Connessione del giocatore da aggiungere
+        
+        Returns:
+            bool: True se il giocatore è stato aggiunto, False se la sessione è piena
+        
+        Example:
+            >>> player = PlayerConnection(sock, addr, 'p1', 'Alice')
+            >>> success = session.add_player(player)
+            >>> if success:
+            ...     print("Giocatore aggiunto")
+        """
         if len(self.players) >= self.max_players:
             return False
 
         self.players[player.player_id] = player
         return True
 
-    def remove_player(self, player_id: str):
-        """Rimuove un giocatore dalla sessione"""
+    def remove_player(self, player_id: str) -> None:
+        """
+        Rimuove un giocatore dalla sessione.
+        
+        Args:
+            player_id (str): ID del giocatore da rimuovere
+        
+        Example:
+            >>> session.remove_player('player_123')
+        """
         if player_id in self.players:
             del self.players[player_id]
         if player_id in self.ready_players:
             self.ready_players.remove(player_id)
 
-    def set_player_ready(self, player_id: str, ready: bool):
-        """Imposta lo stato ready di un giocatore"""
+    def set_player_ready(self, player_id: str, ready: bool) -> None:
+        """
+        Imposta lo stato ready di un giocatore.
+        
+        Args:
+            player_id (str): ID del giocatore
+            ready (bool): True per pronto, False per non pronto
+        
+        Example:
+            >>> session.set_player_ready('player_123', True)
+        """
         if ready:
             self.ready_players.add(player_id)
         else:
             self.ready_players.discard(player_id)
 
     def all_players_ready(self) -> bool:
-        """Verifica se tutti i giocatori sono pronti"""
+        """
+        Verifica se tutti i giocatori connessi sono pronti.
+        
+        Returns:
+            bool: True se tutti i giocatori sono pronti e ci sono almeno 2 giocatori
+        
+        Example:
+            >>> if session.all_players_ready():
+            ...     session.start_game()
+        """
         return len(self.ready_players) == len(self.players) and len(self.players) >= 2
 
     def get_player_count(self) -> int:
-        """Ottiene il numero di giocatori connessi"""
+        """
+        Ottiene il numero di giocatori attualmente connessi.
+        
+        Returns:
+            int: Numero di giocatori connessi
+        
+        Example:
+            >>> count = session.get_player_count()
+            >>> print(f"Giocatori connessi: {count}")
+        """
         return len(self.players)
 
     def get_ready_count(self) -> int:
-        """Ottiene il numero di giocatori pronti"""
+        """
+        Ottiene il numero di giocatori pronti.
+        
+        Returns:
+            int: Numero di giocatori pronti
+        
+        Example:
+            >>> ready = session.get_ready_count()
+            >>> print(f"Giocatori pronti: {ready}")
+        """
         return len(self.ready_players)
 
-    def start_game(self):
-        """Avvia il gioco"""
+    def start_game(self) -> None:
+        """
+        Avvia la partita impostando lo stato e il timestamp di inizio.
+        
+        Example:
+            >>> session.start_game()
+            >>> print(f"Partita avviata alle {session.started_at}")
+        """
         self.state = MultiplayerGameState.STARTING
         self.started_at = datetime.now()
 
     def next_question(self) -> Optional[Dict]:
-        """Passa alla prossima domanda"""
+        """
+        Passa alla prossima domanda della partita.
+        
+        Returns:
+            Optional[Dict]: La prossima domanda o None se non ci sono più domande
+        
+        Example:
+            >>> question = session.next_question()
+            >>> if question:
+            ...     print(f"Domanda: {question['question']}")
+        """
         if self.current_question_index >= len(self.questions):
             return None
 
@@ -164,7 +360,21 @@ class MultiplayerSession:
         return self.current_question
 
     def submit_answer(self, player_id: str, answer: str) -> bool:
-        """Registra la risposta di un giocatore"""
+        """
+        Registra la risposta di un giocatore alla domanda corrente.
+        
+        Args:
+            player_id (str): ID del giocatore che risponde
+            answer (str): Risposta fornita dal giocatore
+        
+        Returns:
+            bool: True se la risposta è stata registrata, False altrimenti
+        
+        Example:
+            >>> success = session.submit_answer('player_123', 'Roma')
+            >>> if success:
+            ...     print("Risposta registrata")
+        """
         if player_id not in self.players:
             return False
 
@@ -181,11 +391,30 @@ class MultiplayerSession:
         return True
 
     def check_all_answered(self) -> bool:
-        """Verifica se tutti i giocatori hanno risposto"""
+        """
+        Verifica se tutti i giocatori hanno fornito una risposta.
+        
+        Returns:
+            bool: True se tutti i giocatori hanno risposto, False altrimenti
+        
+        Example:
+            >>> if session.check_all_answered():
+            ...     session.calculate_scores()
+        """
         return all(player.current_answer is not None for player in self.players.values())
 
-    def calculate_scores(self):
-        """Calcola i punteggi per la domanda corrente"""
+    def calculate_scores(self) -> None:
+        """
+        Calcola i punteggi per la domanda corrente.
+        
+        Assegna punti ai giocatori che hanno risposto correttamente,
+        con bonus per velocità di risposta.
+        
+        Example:
+            >>> session.calculate_scores()
+            >>> for player in session.players.values():
+            ...     print(f"{player.player_name}: {player.score} punti")
+        """
         if not self.current_question:
             return
 
@@ -208,13 +437,29 @@ class MultiplayerSession:
 
                 player.score += total_score
 
-    def finish_game(self):
-        """Termina il gioco"""
+    def finish_game(self) -> None:
+        """
+        Termina la partita impostando lo stato e il timestamp di fine.
+        
+        Example:
+            >>> session.finish_game()
+            >>> scores = session.get_final_scores()
+        """
         self.state = MultiplayerGameState.FINISHED
         self.finished_at = datetime.now()
 
     def get_final_scores(self) -> List[Dict]:
-        """Ottiene i punteggi finali ordinati"""
+        """
+        Ottiene i punteggi finali ordinati per classifica.
+        
+        Returns:
+            List[Dict]: Lista dei punteggi finali ordinati per punteggio decrescente
+        
+        Example:
+            >>> scores = session.get_final_scores()
+            >>> for i, score in enumerate(scores, 1):
+            ...     print(f"{i}. {score['player_name']}: {score['score']}")
+        """
         scores = []
         for player in self.players.values():
             scores.append({
@@ -227,7 +472,16 @@ class MultiplayerSession:
         return sorted(scores, key=lambda x: x['score'], reverse=True)
 
     def to_dict(self) -> Dict:
-        """Converte in dizionario per serializzazione"""
+        """
+        Converte la sessione in un dizionario per serializzazione.
+        
+        Returns:
+            Dict: Rappresentazione dizionario della sessione
+        
+        Example:
+            >>> data = session.to_dict()
+            >>> print(f"Session {data['session_id']}: {data['player_count']} giocatori")
+        """
         return {
             'session_id': self.session_id,
             'host_player_id': self.host_player_id,
@@ -252,11 +506,46 @@ class MultiplayerSession:
 
 class MultiplayerServer:
     """
-    Server per gestire le partite multiplayer.
-    Gestisce connessioni, sincronizzazione e comunicazione.
+    Server principale per la gestione delle partite multiplayer.
+    
+    Questa classe gestisce tutte le connessioni socket, le sessioni di gioco,
+    la sincronizzazione tra giocatori e la comunicazione bidirezionale.
+    
+    Attributes:
+        host (str): Indirizzo host del server
+        port (int): Porta del server
+        server_socket (Optional[socket.socket]): Socket del server
+        running (bool): Stato del server (in esecuzione o meno)
+        sessions (Dict[str, MultiplayerSession]): Sessioni attive
+        players (Dict[str, PlayerConnection]): Connessioni giocatori attive
+        
+        server_thread (Optional[threading.Thread]): Thread principale del server
+        message_queue (queue.Queue): Coda messaggi per comunicazione thread-safe
+        
+        on_player_joined (Optional[Callable]): Callback per giocatore entrato
+        on_player_left (Optional[Callable]): Callback per giocatore uscito
+        on_game_started (Optional[Callable]): Callback per gioco avviato
+        on_game_finished (Optional[Callable]): Callback per gioco terminato
+    
+    Example:
+        >>> server = MultiplayerServer('localhost', 8888)
+        >>> server.on_player_joined = lambda player: print(f"Giocatore {player.player_name} entrato")
+        >>> server.start()
+        >>> # ... operazioni del server ...
+        >>> server.stop()
     """
 
     def __init__(self, host: str = 'localhost', port: int = 8888):
+        """
+        Inizializza il server multiplayer.
+        
+        Args:
+            host (str): Indirizzo host del server (default: 'localhost')
+            port (int): Porta del server (default: 8888)
+        
+        Example:
+            >>> server = MultiplayerServer('0.0.0.0', 9999)
+        """
         self.host = host
         self.port = port
         self.server_socket: Optional[socket.socket] = None
@@ -274,8 +563,18 @@ class MultiplayerServer:
         self.on_game_started: Optional[Callable] = None
         self.on_game_finished: Optional[Callable] = None
 
-    def start(self):
-        """Avvia il server"""
+    def start(self) -> bool:
+        """
+        Avvia il server e inizia ad accettare connessioni.
+        
+        Returns:
+            bool: True se il server è stato avviato correttamente, False altrimenti
+        
+        Example:
+            >>> server = MultiplayerServer()
+            >>> if server.start():
+            ...     print("Server avviato con successo")
+        """
         try:
             self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -294,8 +593,13 @@ class MultiplayerServer:
             print(f"Errore nell'avvio del server: {e}")
             return False
 
-    def stop(self):
-        """Ferma il server"""
+    def stop(self) -> None:
+        """
+        Ferma il server e chiude tutte le connessioni.
+        
+        Example:
+            >>> server.stop()
+        """
         self.running = False
 
         # Chiudi tutte le connessioni
@@ -307,8 +611,19 @@ class MultiplayerServer:
 
         print("Server multiplayer fermato")
 
-    def _server_loop(self):
-        """Loop principale del server"""
+    def _server_loop(self) -> None:
+        """
+        Loop principale del server che gestisce connessioni e messaggi.
+        
+        Questo metodo viene eseguito in un thread separato e gestisce:
+        - Nuove connessioni in entrata
+        - Elaborazione messaggi dalla coda
+        - Controllo timeout giocatori
+        
+        Example:
+            >>> # Questo metodo viene chiamato automaticamente dal thread del server
+            >>> # Non dovrebbe essere chiamato direttamente
+        """
         while self.running:
             try:
                 # Gestisci nuove connessioni
@@ -330,8 +645,17 @@ class MultiplayerServer:
             except Exception as e:
                 print(f"Errore nel loop del server: {e}")
 
-    def _handle_new_connection(self, client_socket: socket.socket, address: Tuple[str, int]):
-        """Gestisce una nuova connessione"""
+    def _handle_new_connection(self, client_socket: socket.socket, address: Tuple[str, int]) -> None:
+        """
+        Gestisce una nuova connessione client.
+        
+        Args:
+            client_socket (socket.socket): Socket del client connesso
+            address (Tuple[str, int]): Tupla (IP, porta) del client
+        
+        Example:
+            >>> # Questo metodo viene chiamato automaticamente quando un client si connette
+        """
         try:
             # Ricevi il messaggio di handshake
             data = client_socket.recv(1024)
@@ -367,8 +691,13 @@ class MultiplayerServer:
             print(f"Errore nella gestione nuova connessione: {e}")
             client_socket.close()
 
-    def _process_message_queue(self):
-        """Elabora i messaggi in coda"""
+    def _process_message_queue(self) -> None:
+        """
+        Elabora tutti i messaggi presenti nella coda.
+        
+        Example:
+            >>> # Questo metodo viene chiamato automaticamente dal loop del server
+        """
         while not self.message_queue.empty():
             try:
                 message = self.message_queue.get_nowait()
@@ -376,8 +705,16 @@ class MultiplayerServer:
             except queue.Empty:
                 break
 
-    def _handle_message(self, message: Dict):
-        """Gestisce un messaggio ricevuto"""
+    def _handle_message(self, message: Dict) -> None:
+        """
+        Gestisce un messaggio ricevuto da un client.
+        
+        Args:
+            message (Dict): Messaggio ricevuto dal client
+        
+        Example:
+            >>> # Questo metodo viene chiamato automaticamente per ogni messaggio ricevuto
+        """
         message_type = message.get('type')
         player_id = message.get('player_id')
         data = message.get('data', {})
@@ -548,11 +885,34 @@ class MultiplayerServer:
             print(f"Sessione terminata: {session_id}")
 
     def get_active_sessions(self) -> List[Dict]:
-        """Ottiene la lista delle sessioni attive"""
+        """
+        Ottiene la lista di tutte le sessioni attive.
+        
+        Returns:
+            List[Dict]: Lista delle sessioni attive in formato dizionario
+        
+        Example:
+            >>> sessions = server.get_active_sessions()
+            >>> for session in sessions:
+            ...     print(f"Session {session['session_id']}: {session['player_count']} giocatori")
+        """
         return [session.to_dict() for session in self.sessions.values()]
 
     def get_session_info(self, session_id: str) -> Optional[Dict]:
-        """Ottiene informazioni su una sessione"""
+        """
+        Ottiene informazioni dettagliate su una sessione specifica.
+        
+        Args:
+            session_id (str): ID della sessione da cercare
+        
+        Returns:
+            Optional[Dict]: Informazioni della sessione o None se non trovata
+        
+        Example:
+            >>> info = server.get_session_info('sess_123')
+            >>> if info:
+            ...     print(f"Host: {info['host_player_name']}")
+        """
         if session_id in self.sessions:
             return self.sessions[session_id].to_dict()
         return None
@@ -560,11 +920,51 @@ class MultiplayerServer:
 
 class MultiplayerClient:
     """
-    Client per connettersi al server multiplayer.
-    Gestisce la comunicazione con il server.
+    Client per la connessione al server multiplayer.
+    
+    Questa classe gestisce la connessione socket al server, l'autenticazione,
+    l'invio e ricezione di messaggi, e fornisce un'interfaccia semplificata
+    per le operazioni multiplayer.
+    
+    Attributes:
+        host (str): Indirizzo del server
+        port (int): Porta del server
+        socket (Optional[socket.socket]): Socket di connessione
+        connected (bool): Stato di connessione
+        player_id (Optional[str]): ID univoco del giocatore
+        player_name (str): Nome del giocatore
+        
+        receive_thread (Optional[threading.Thread]): Thread per ricevere messaggi
+        running (bool): Stato del client (in esecuzione o meno)
+        
+        on_connected (Optional[Callable]): Callback per connessione riuscita
+        on_disconnected (Optional[Callable]): Callback per disconnessione
+        on_message_received (Optional[Callable]): Callback per messaggio ricevuto
+        on_error (Optional[Callable]): Callback per errori
+    
+    Example:
+        >>> client = MultiplayerClient('localhost', 8888)
+        >>> client.on_connected = lambda: print("Connesso!")
+        >>> client.on_message_received = lambda msg: print(f"Messaggio: {msg}")
+        >>> client.connect("Mario")
+        >>> client.create_session({
+        ...     'language': 'it',
+        ...     'difficulty': 'medium',
+        ...     'max_players': 4
+        ... })
     """
 
     def __init__(self, host: str = 'localhost', port: int = 8888):
+        """
+        Inizializza il client multiplayer.
+        
+        Args:
+            host (str): Indirizzo del server (default: 'localhost')
+            port (int): Porta del server (default: 8888)
+        
+        Example:
+            >>> client = MultiplayerClient('192.168.1.100', 9999)
+        """
         self.host = host
         self.port = port
         self.socket: Optional[socket.socket] = None
@@ -583,7 +983,20 @@ class MultiplayerClient:
         self.on_error: Optional[Callable] = None
 
     def connect(self, player_name: str) -> bool:
-        """Connette al server"""
+        """
+        Connette al server multiplayer.
+        
+        Args:
+            player_name (str): Nome del giocatore per la connessione
+        
+        Returns:
+            bool: True se la connessione è riuscita, False altrimenti
+        
+        Example:
+            >>> success = client.connect("Alice")
+            >>> if success:
+            ...     print("Connessione riuscita!")
+        """
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.host, self.port))
@@ -618,8 +1031,13 @@ class MultiplayerClient:
                 self.on_error(str(e))
             return False
 
-    def disconnect(self):
-        """Disconnette dal server"""
+    def disconnect(self) -> None:
+        """
+        Disconnette dal server e chiude la connessione.
+        
+        Example:
+            >>> client.disconnect()
+        """
         self.running = False
         self.connected = False
 
@@ -632,8 +1050,22 @@ class MultiplayerClient:
         if self.on_disconnected:
             self.on_disconnected()
 
-    def send_message(self, message_type: str, data: Dict):
-        """Invia un messaggio al server"""
+    def send_message(self, message_type: str, data: Dict) -> bool:
+        """
+        Invia un messaggio al server.
+        
+        Args:
+            message_type (str): Tipo di messaggio da inviare
+            data (Dict): Dati del messaggio
+        
+        Returns:
+            bool: True se il messaggio è stato inviato, False altrimenti
+        
+        Example:
+            >>> success = client.send_message('ping', {})
+            >>> if not success:
+            ...     print("Errore nell'invio")
+        """
         if not self.connected or not self.socket:
             return False
 
@@ -680,25 +1112,90 @@ class MultiplayerClient:
         self.disconnect()
 
     def create_session(self, session_data: Dict) -> bool:
-        """Crea una nuova sessione"""
+        """
+        Crea una nuova sessione di gioco.
+        
+        Args:
+            session_data (Dict): Dati della sessione (linguaggio, difficoltà, ecc.)
+        
+        Returns:
+            bool: True se la richiesta è stata inviata, False altrimenti
+        
+        Example:
+            >>> data = {
+            ...     'language': 'it',
+            ...     'difficulty': 'medium',
+            ...     'max_players': 4
+            ... }
+            >>> client.create_session(data)
+        """
         return self.send_message('create_session', session_data)
 
     def join_session(self, session_id: str) -> bool:
-        """Si unisce a una sessione esistente"""
+        """
+        Si unisce a una sessione esistente.
+        
+        Args:
+            session_id (str): ID della sessione a cui unirsi
+        
+        Returns:
+            bool: True se la richiesta è stata inviata, False altrimenti
+        
+        Example:
+            >>> client.join_session('session_123')
+        """
         return self.send_message('join_session', {'session_id': session_id})
 
     def set_ready(self, ready: bool) -> bool:
-        """Imposta lo stato ready"""
+        """
+        Imposta lo stato ready del giocatore.
+        
+        Args:
+            ready (bool): True per pronto, False per non pronto
+        
+        Returns:
+            bool: True se la richiesta è stata inviata, False altrimenti
+        
+        Example:
+            >>> client.set_ready(True)  # Il giocatore è pronto
+        """
         return self.send_message('set_ready', {'ready': ready})
 
     def submit_answer(self, answer: str) -> bool:
-        """Invia una risposta"""
+        """
+        Invia una risposta alla domanda corrente.
+        
+        Args:
+            answer (str): Risposta fornita dal giocatore
+        
+        Returns:
+            bool: True se la risposta è stata inviata, False altrimenti
+        
+        Example:
+            >>> client.submit_answer('Roma')
+        """
         return self.send_message('submit_answer', {'answer': answer})
 
     def leave_session(self) -> bool:
-        """Abbandona la sessione corrente"""
+        """
+        Abbandona la sessione corrente.
+        
+        Returns:
+            bool: True se la richiesta è stata inviata, False altrimenti
+        
+        Example:
+            >>> client.leave_session()
+        """
         return self.send_message('leave_session', {})
 
     def ping(self) -> bool:
-        """Invia un ping al server"""
+        """
+        Invia un ping al server per mantenere la connessione attiva.
+        
+        Returns:
+            bool: True se il ping è stato inviato, False altrimenti
+        
+        Example:
+            >>> client.ping()  # Mantiene la connessione attiva
+        """
         return self.send_message('ping', {})

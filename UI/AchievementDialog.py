@@ -18,9 +18,33 @@ from CONST.constants import AppConstants
 
 
 class AchievementCard(QFrame):
-    """Card per visualizzare un singolo achievement"""
+    """
+    Card per visualizzare un singolo achievement.
+    
+    Questa classe rappresenta graficamente un singolo achievement nell'interfaccia,
+    mostrando nome, descrizione, progresso e stato di completamento.
+    
+    Attributes:
+        achievement_def (AchievementDefinition): Definizione dell'achievement
+        player_achievement (PlayerAchievement): Progresso del giocatore (opzionale)
+        language (str): Lingua corrente per le traduzioni
+        is_unlocked (bool): Se l'achievement è stato sbloccato
+    
+    Example:
+        >>> card = AchievementCard(achievement_def, player_progress, 'it')
+        >>> layout.addWidget(card)
+    """
 
     def __init__(self, achievement_def, player_achievement=None, language='it', parent=None):
+        """
+        Inizializza una card achievement.
+        
+        Args:
+            achievement_def (AchievementDefinition): Definizione dell'achievement da mostrare.
+            player_achievement (PlayerAchievement, optional): Progresso del giocatore.
+            language (str): Codice lingua per le traduzioni (default: 'it').
+            parent (QWidget, optional): Widget padre.
+        """
         super().__init__(parent)
         self.achievement_def = achievement_def
         self.player_achievement = player_achievement
@@ -31,7 +55,16 @@ class AchievementCard(QFrame):
         self.setup_style()
 
     def setup_ui(self):
-        """Configura l'interfaccia della card"""
+        """
+        Configura l'interfaccia della card achievement.
+        
+        Crea e configura tutti gli elementi UI della card:
+        - Icona emoji dell'achievement
+        - Titolo con stile diverso per achievement sbloccati/non sbloccati
+        - Descrizione con word wrap
+        - Barra di progresso se l'achievement non è completato
+        - Punti premio nell'angolo destro
+        """
         layout = QHBoxLayout(self)
         layout.setContentsMargins(15, 10, 15, 10)
         layout.setSpacing(12)
@@ -130,7 +163,12 @@ class AchievementCard(QFrame):
         layout.addLayout(points_layout)
 
     def setup_style(self):
-        """Configura lo stile della card"""
+        """
+        Configura lo stile della card achievement.
+        
+        Applica stili CSS diversi a seconda che l'achievement sia
+        sbloccato o meno, con colori e bordi appropriati.
+        """
         if self.is_unlocked:
             self.setStyleSheet("""
                 AchievementCard {
@@ -150,9 +188,40 @@ class AchievementCard(QFrame):
 
 
 class AchievementDialog(QDialog):
-    """Dialog principale per visualizzare gli achievement"""
+    """
+    Dialog principale per visualizzare e gestire gli achievement del giocatore.
+    
+    Questa classe fornisce un'interfaccia utente completa per:
+    - Visualizzare tutti gli achievement disponibili
+    - Mostrare il progresso degli achievement incompleti
+    - Filtrare gli achievement per categoria e rarità
+    - Gestire le notifiche di sblocco achievement
+    
+    Attributes:
+        achievement_manager (AchievementManager): Gestore degli achievement
+        language_model: Modello per la gestione delle lingue
+        current_language (str): Lingua attualmente selezionata
+        tab_widget (QTabWidget): Widget per i tab delle categorie
+    
+    Example:
+        >>> manager = AchievementManager()
+        >>> dialog = AchievementDialog(manager, language_model)
+        >>> dialog.exec_()
+    """
 
     def __init__(self, achievement_manager: AchievementManager, language_model=None, parent=None):
+        """
+        Inizializza il dialog degli achievement.
+        
+        Args:
+            achievement_manager (AchievementManager): Istanza del gestore achievement
+            language_model: Modello per la gestione delle lingue (opzionale)
+            parent: Widget padre (opzionale)
+        
+        Example:
+            >>> manager = AchievementManager()
+            >>> dialog = AchievementDialog(manager)
+        """
         super().__init__(parent)
         self.achievement_manager = achievement_manager
         self.language_model = language_model
@@ -166,7 +235,20 @@ class AchievementDialog(QDialog):
             self.language_model.register_language_change_callback(self.on_language_changed)
 
     def setup_ui(self):
-        """Configura l'interfaccia principale"""
+        """
+        Configura l'interfaccia utente principale del dialog.
+        
+        Crea il layout completo con:
+        - Header con statistiche e barra progresso
+        - Tab widget per filtrare gli achievement
+        - Pulsante di chiusura
+        
+        La UI è responsive e supporta il cambio dinamico di lingua.
+        
+        Example:
+            >>> dialog = AchievementDialog(manager)
+            >>> dialog.setup_ui()  # Configura automaticamente l'interfaccia
+        """
         self.setWindowTitle(AppConstants.get_ui_text(self.current_language, 'achievements_title'))
         self.setFixedSize(700, 600)
         self.setModal(True)
@@ -260,7 +342,21 @@ class AchievementDialog(QDialog):
         layout.addLayout(button_layout)
 
     def setup_achievement_tabs(self):
-        """Configura i tab per le diverse categorie di achievement"""
+        """
+        Configura i tab per le diverse categorie di achievement.
+        
+        Crea tab per:
+        - Tutti gli achievement
+        - Achievement sbloccati
+        - Achievement da sbloccare
+        - Achievement per rarità (Comune, Raro, Epico, Leggendario)
+        
+        Ogni tab utilizza un'area di scorrimento per gestire molti achievement.
+        
+        Example:
+            >>> dialog = AchievementDialog(manager)
+            >>> dialog.setup_achievement_tabs()  # Crea tutti i tab con filtri
+        """
         # Tab Tutti gli Achievement
         all_tab = self.create_achievement_tab()
         self.tab_widget.addTab(all_tab, "🏆 Tutti")
@@ -286,7 +382,24 @@ class AchievementDialog(QDialog):
             self.tab_widget.addTab(rarity_tab, f"{emoji_map[rarity]} {rarity_name}")
 
     def create_achievement_tab(self, filter_unlocked=None, filter_locked=None, filter_rarity=None):
-        """Crea un tab con gli achievement filtrati"""
+        """
+        Crea un tab con gli achievement filtrati secondo i parametri specificati.
+        
+        Args:
+            filter_unlocked (bool, optional): Se True, mostra solo achievement sbloccati
+            filter_locked (bool, optional): Se True, mostra solo achievement bloccati
+            filter_rarity (AchievementRarity, optional): Filtra per rarità specifica
+        
+        Returns:
+            QScrollArea: Area di scorrimento contenente le card degli achievement filtrati
+        
+        Example:
+            >>> # Tab solo achievement sbloccati
+            >>> tab = dialog.create_achievement_tab(filter_unlocked=True)
+            >>> 
+            >>> # Tab achievement rari
+            >>> tab = dialog.create_achievement_tab(filter_rarity=AchievementRarity.RARE)
+        """
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
@@ -348,19 +461,45 @@ class AchievementDialog(QDialog):
         return scroll_area
 
     def load_achievements(self):
-        """Carica e visualizza gli achievement"""
+        """
+        Carica e visualizza gli achievement aggiornati.
+        
+        Ricarica tutti i tab con i dati più recenti degli achievement,
+        utile dopo cambiamenti di stato o lingua.
+        
+        Example:
+            >>> dialog.load_achievements()  # Aggiorna la visualizzazione
+        """
         # Ricarica i tab
         self.tab_widget.clear()
         self.setup_achievement_tabs()
 
     def on_language_changed(self, old_language: str, new_language: str):
-        """Gestisce il cambio di lingua"""
+        """
+        Gestisce il cambio dinamico di lingua nell'interfaccia.
+        
+        Args:
+            old_language (str): Lingua precedente
+            new_language (str): Nuova lingua selezionata
+        
+        Example:
+            >>> dialog.on_language_changed('it', 'en')  # Cambia lingua a inglese
+        """
         self.current_language = new_language
         self.setWindowTitle(AppConstants.get_ui_text(new_language, 'achievements_title'))
         self.load_achievements()
 
     def show_achievement_notification(self, achievement_def):
-        """Mostra una notifica per un achievement sbloccato"""
+        """
+        Mostra una notifica popup per un achievement appena sbloccato.
+        
+        Args:
+            achievement_def (AchievementDefinition): Definizione dell'achievement sbloccato
+        
+        Example:
+            >>> ach_def = manager.get_achievement_definition('first_win')
+            >>> dialog.show_achievement_notification(ach_def)
+        """
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle(AppConstants.get_ui_text(self.current_language, 'achievement_unlocked'))
         msg_box.setText(f"{achievement_def.icon_emoji} {achievement_def.get_name(self.current_language)}")

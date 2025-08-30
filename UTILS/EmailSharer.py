@@ -33,54 +33,107 @@ logger = logging.getLogger(__name__)
 
 class EmailSharer:
     """
-    Handles email sharing functionality for the quiz application.
-    
-    This class provides methods to:
-    - Validate email addresses
-    - Compose and send invitation emails
-    - Handle SMTP configuration and errors
+    Handles email sharing functionality for the Traity Quiz application.
+
+    This class provides comprehensive email sharing capabilities including:
+    - Email address validation using regex patterns
+    - Multi-language invitation email composition with HTML templates
+    - SMTP email sending with proper error handling and authentication
+    - Integration with SMTP configuration management
+    - Support for personal messages and sender customization
+
+    The class supports 6 languages (Italian, English, Spanish, French, German, Portuguese)
+    and handles various SMTP authentication scenarios including OAuth and app passwords.
+
+    Attributes:
+        config_manager (SMTPConfigManager): Manager for SMTP configuration and credentials
+
+    Example:
+        >>> sharer = EmailSharer()
+        >>> result = sharer.send_invitation(
+        ...     "friend@example.com", "John Doe", "john@example.com", "password",
+        ...     "Let's play together!", "en"
+        ... )
+        >>> if result['success']:
+        ...     print("Email sent successfully!")
     """
-    
+
     def __init__(self, config_manager: Optional[SMTPConfigManager] = None):
         """
         Initialize the EmailSharer with SMTP configuration.
-        
+
         Args:
             config_manager (Optional[SMTPConfigManager]): SMTP configuration manager.
-                If None, creates a new instance.
+                If None, creates a new instance with default settings.
+
+        Returns:
+            None
+
+        Example:
+            >>> sharer = EmailSharer()  # Uses default config manager
+            >>> custom_manager = SMTPConfigManager()
+            >>> sharer = EmailSharer(custom_manager)
         """
         self.config_manager = config_manager or SMTPConfigManager()
-        
+
     @staticmethod
     def validate_email(email: str) -> bool:
         """
         Validate email address format using regex.
-        
+
+        Uses a comprehensive regex pattern to validate email address format
+        according to standard email conventions. The validation includes:
+        - Local part with allowed characters (letters, numbers, dots, etc.)
+        - @ symbol separator
+        - Domain part with valid domain format
+        - Top-level domain with 2+ characters
+
         Args:
             email (str): Email address to validate
-            
+
         Returns:
             bool: True if email format is valid, False otherwise
+
+        Example:
+            >>> EmailSharer.validate_email("user@example.com")
+            True
+            >>> EmailSharer.validate_email("invalid-email")
+            False
         """
         email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         return re.match(email_pattern, email.strip()) is not None
     
-    def compose_invitation_email(self, 
-                               recipient_email: str, 
-                               sender_name: str, 
+    def compose_invitation_email(self,
+                               recipient_email: str,
+                               sender_name: str,
                                personal_message: str = "",
                                language: str = "en") -> MIMEMultipart:
         """
-        Compose an invitation email with proper formatting.
-        
+        Compose an invitation email with proper formatting and multi-language support.
+
+        Creates a complete MIME multipart email message with HTML content,
+        localized subject and body based on the specified language. The email
+        includes the sender's invitation, optional personal message, and
+        information about the Traity Quiz application.
+
+        Supported languages: Italian ('it'), English ('en'), Spanish ('es'),
+        French ('fr'), German ('de'), Portuguese ('pt'). Falls back to English
+        for unsupported languages.
+
         Args:
-            recipient_email (str): Recipient's email address
-            sender_name (str): Sender's name
-            personal_message (str): Optional personal message
-            language (str): Language code for email content
-            
+            recipient_email (str): Recipient's email address (used in To: header)
+            sender_name (str): Sender's display name (appears in subject and body)
+            personal_message (str, optional): Custom message from sender. Defaults to ""
+            language (str, optional): Language code for email content. Defaults to "en"
+
         Returns:
-            MIMEMultipart: Composed email message
+            MIMEMultipart: Fully composed email message ready for sending
+
+        Example:
+            >>> msg = sharer.compose_invitation_email(
+            ...     "friend@example.com", "John", "Let's play!", "en"
+            ... )
+            >>> # msg is now a complete MIME email message
         """
         msg = MIMEMultipart()
         msg['From'] = f"{sender_name} <noreply@traity-quiz.com>"
@@ -112,26 +165,55 @@ class EmailSharer:
         
         return msg
     
-    def send_invitation(self, 
-                       recipient_email: str, 
-                       sender_name: str, 
+    def send_invitation(self,
+                       recipient_email: str,
+                       sender_name: str,
                        sender_email: str,
                        sender_password: str,
                        personal_message: str = "",
                        language: str = "en") -> Dict[str, Any]:
         """
-        Send invitation email to recipient.
-        
+        Send invitation email to recipient with comprehensive error handling.
+
+        This is the main method for sending Traity Quiz invitation emails. It performs
+        complete validation of inputs, SMTP configuration, and handles various error
+        scenarios. The method supports both configured SMTP credentials and custom
+        credentials provided at runtime.
+
+        The process includes:
+        1. Input validation (email formats, required fields)
+        2. SMTP configuration verification
+        3. Credential resolution (configured vs provided)
+        4. Email composition with multi-language support
+        5. SMTP connection and authentication
+        6. Email sending with proper error handling
+        7. Connection cleanup
+
         Args:
-            recipient_email (str): Recipient's email address
-            sender_name (str): Sender's name
-            sender_email (str): Sender's email address
-            sender_password (str): Sender's email password
-            personal_message (str): Optional personal message
-            language (str): Language code for email content
-            
+            recipient_email (str): Recipient's email address (must be valid format)
+            sender_name (str): Sender's display name (cannot be empty)
+            sender_email (str): Sender's email address for SMTP authentication
+            sender_password (str): Sender's email password or app password
+            personal_message (str, optional): Custom message to include. Defaults to ""
+            language (str, optional): Language code for email content. Defaults to "en"
+
         Returns:
-            Dict[str, Any]: Result with 'success' boolean and 'message' string
+            Dict[str, Any]: Result dictionary with the following keys:
+                - 'success' (bool): True if email sent successfully, False otherwise
+                - 'message' (str): Human-readable result message
+
+        Raises:
+            No exceptions raised - all errors are caught and returned in result dict
+
+        Example:
+            >>> result = sharer.send_invitation(
+            ...     "friend@example.com", "John Doe", "john@gmail.com", "app_password",
+            ...     "Let's play Traity Quiz together!", "en"
+            ... )
+            >>> if result['success']:
+            ...     print("Email sent:", result['message'])
+            ... else:
+            ...     print("Failed:", result['message'])
         """
         try:
             # Validate inputs
