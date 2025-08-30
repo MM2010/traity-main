@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import sys
+import os
+# Aggiungi il percorso della directory principale al sys.path
+main_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, main_dir)
+
 from CONST.constants import AppConstants
 
 print('Test chiavi completion_percentage e no_achievements:')

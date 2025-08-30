@@ -10,9 +10,9 @@ import os
 from datetime import datetime
 import time
 
-# Aggiungi il path per gli import
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(current_dir)
+# Aggiungi il percorso della directory principale al sys.path
+main_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, main_dir)
 
 from CLASSES.GameTracker import GameTracker, PlayerProfile, QuestionResult, GameSession
 

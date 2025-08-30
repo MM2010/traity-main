@@ -2,7 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import sys
+import os
 import importlib
+
+# Aggiungi il percorso della directory principale al sys.path
+main_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, main_dir)
 
 # Forza ricaricamento completo del modulo
 modules_to_reload = ['CONST.constants', 'CONST']

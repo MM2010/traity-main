@@ -2,6 +2,12 @@
 # -*- coding: utf-8 -*-
 
 try:
+    import sys
+    import os
+    # Aggiungi il percorso della directory principale al sys.path
+    main_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, main_dir)
+
     from CONST.constants import AppConstants
     print('Modulo importato con successo')
 
