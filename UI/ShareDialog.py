@@ -102,7 +102,7 @@ class ShareDialog(QDialog):
         self.current_language = 'it'  # Default language
         
         if self.language_model:
-            self.current_language = getattr(self.language_model, 'current_language', 'it')
+            self.current_language = getattr(self.language_model, 'selected_language', 'it')
         
         self.init_ui()
         self.setup_connections()

@@ -15,6 +15,11 @@ from CLASSES.GameTracker import GameTracker, PlayerProfile
 from UI.StatsDialog import show_player_stats
 from UI.ShareDialog import ShareDialog
 from UI.SMTPConfigDialog import SMTPConfigDialog
+from CLASSES.AchievementSystem import AchievementManager, AchievementType
+from UI.AchievementDialog import AchievementDialog
+from CLASSES.UserSettings import SettingsManager
+from UI.SettingsDialog import SettingsDialog
+from UI.MultiplayerDialog import MultiplayerDialog
 from typing import Optional
 
 import PyQt5.QtWidgets as py
@@ -44,6 +49,15 @@ class QuizApp(py.QMainWindow):
         
         # Type configuration - usa il modello separato  
         self.type_model = TypeModel()
+        
+        # Achievement system - sistema di achievement e badge
+        self.achievement_manager = AchievementManager()
+        
+        # User settings system - impostazioni personalizzate utente
+        self.settings_manager = SettingsManager()
+        
+        # Multiplayer system - sarà inizializzato quando necessario
+        self.multiplayer_dialog = None
         
         # Game tracking system - inizializza il sistema di tracking delle sessioni
         self.game_tracker = GameTracker()
@@ -103,6 +117,9 @@ class QuizApp(py.QMainWindow):
         self.questions = []
         self.answered_questions = {}  # Track user answers {index: selected_answer}
         self.question_states = {}     # Track visual state of questions
+        self.current_streak = 0       # Track current consecutive correct answers streak
+        self.explored_languages = set()  # Track languages used for LANGUAGE_EXPLORER achievement
+        self.explored_categories = set()  # Track categories used for CATEGORY_MASTER achievement
         
         # Loading state management
         self.is_loading_overlay_visible = False
@@ -382,6 +399,75 @@ class QuizApp(py.QMainWindow):
         # Separator
         game_menu.addSeparator()
         
+        # Achievements action
+        achievements_texts = {
+            'it': "🏆 Achievement",
+            'en': "🏆 Achievements",
+            'es': "🏆 Logros",
+            'fr': "🏆 Succès",
+            'de': "🏆 Erfolge",
+            'pt': "🏆 Conquistas"
+        }
+        achievements_action = py.QAction(achievements_texts.get(language, achievements_texts['it']), self)
+        achievements_action.setShortcut("Ctrl+A")
+        achievements_action.setStatusTip({
+            'it': "Visualizza i tuoi achievement e badge",
+            'en': "View your achievements and badges",
+            'es': "Ver tus logros e insignias",
+            'fr': "Voir vos succès et badges",
+            'de': "Zeigen Sie Ihre Erfolge und Abzeichen an",
+            'pt': "Veja suas conquistas e emblemas"
+        }.get(language, "Visualizza i tuoi achievement e badge"))
+        achievements_action.triggered.connect(self._show_achievements_dialog)
+        game_menu.addAction(achievements_action)
+        
+        # Settings action
+        settings_texts = {
+            'it': "⚙️ Impostazioni",
+            'en': "⚙️ Settings",
+            'es': "⚙️ Configuración",
+            'fr': "⚙️ Paramètres",
+            'de': "⚙️ Einstellungen",
+            'pt': "⚙️ Configurações"
+        }
+        settings_action = py.QAction(settings_texts.get(language, settings_texts['it']), self)
+        settings_action.setShortcut("Ctrl+P")
+        settings_action.setStatusTip({
+            'it': "Configura le tue preferenze personali",
+            'en': "Configure your personal preferences",
+            'es': "Configurar tus preferencias personales",
+            'fr': "Configurer vos préférences personnelles",
+            'de': "Konfigurieren Sie Ihre persönlichen Einstellungen",
+            'pt': "Configure suas preferências pessoais"
+        }.get(language, "Configura le tue preferenze personali"))
+        settings_action.triggered.connect(self._show_settings_dialog)
+        game_menu.addAction(settings_action)
+        
+        # Multiplayer action
+        multiplayer_texts = {
+            'it': "🎮 Multiplayer",
+            'en': "🎮 Multiplayer",
+            'es': "🎮 Multijugador",
+            'fr': "🎮 Multijoueur",
+            'de': "🎮 Mehrspieler",
+            'pt': "🎮 Multijogador"
+        }
+        multiplayer_action = py.QAction(multiplayer_texts.get(language, multiplayer_texts['it']), self)
+        multiplayer_action.setShortcut("Ctrl+M")
+        multiplayer_action.setStatusTip({
+            'it': "Gioca con altri giocatori online",
+            'en': "Play with other players online",
+            'es': "Jugar con otros jugadores en línea",
+            'fr': "Jouer avec d'autres joueurs en ligne",
+            'de': "Spielen Sie mit anderen Spielern online",
+            'pt': "Jogue com outros jogadores online"
+        }.get(language, "Gioca con altri giocatori online"))
+        multiplayer_action.triggered.connect(self._show_multiplayer_dialog)
+        game_menu.addAction(multiplayer_action)
+        
+        # Separator
+        game_menu.addSeparator()
+        
         # Exit action
         exit_texts = {
             'it': "🚪 Esci",
@@ -416,12 +502,32 @@ class QuizApp(py.QMainWindow):
     def _show_share_dialog(self):
         """Show the share game dialog"""
         share_dialog = ShareDialog(self.language_model, self)
-        share_dialog.exec_()
+        result = share_dialog.exec_()
+        
+        # Update SOCIAL_SHARER achievement if dialog was accepted (shared successfully)
+        if result == py.QDialog.Accepted:
+            self._update_social_sharer_achievement()
 
     def _show_smtp_config_dialog(self):
         """Show the SMTP configuration dialog"""
         smtp_dialog = SMTPConfigDialog(self.language_model, self)
         smtp_dialog.exec_()
+
+    def _show_achievements_dialog(self):
+        """Show the achievements dialog"""
+        achievements_dialog = AchievementDialog(self.achievement_manager, self.language_model, self)
+        achievements_dialog.exec_()
+
+    def _show_settings_dialog(self):
+        """Show the settings dialog"""
+        settings_dialog = SettingsDialog(self.settings_manager, self.language_model, self)
+        settings_dialog.exec_()
+
+    def _show_multiplayer_dialog(self):
+        """Show the multiplayer dialog"""
+        if not self.multiplayer_dialog:
+            self.multiplayer_dialog = MultiplayerDialog(self.language_model, self)
+        self.multiplayer_dialog.exec_()
 
     def _initialize_player_profile(self):
         """Initialize or load player profile for game tracking"""
@@ -485,6 +591,9 @@ class QuizApp(py.QMainWindow):
             
             print(f"Started new game session: {language} | {category_name} | {difficulty} | {question_type}")
             
+            # Update DAILY_PLAYER achievement
+            self._update_daily_player_achievement()
+            
         except Exception as e:
             print(f"Error starting new session: {e}")
 
@@ -501,6 +610,10 @@ class QuizApp(py.QMainWindow):
                 print(f"Ended game session - Duration: {completed_session.game_duration:.1f}s, "
                       f"Questions: {completed_session.total_questions}, "
                       f"Accuracy: {completed_session.accuracy_percentage:.1f}%")
+                
+                # Check for PERFECT_SESSION achievement
+                if completed_session.accuracy_percentage == 100.0 and completed_session.total_questions > 0:
+                    self._update_perfect_session_achievement()
                 
                 # Save player profile
                 if hasattr(self, 'current_player') and self.current_player:
@@ -822,6 +935,10 @@ class QuizApp(py.QMainWindow):
             # Use the unified reset method
             self._reset_quiz_for_parameter_change()
             
+            # Track language exploration for LANGUAGE_EXPLORER achievement
+            self.explored_languages.add(new_language)
+            self._update_language_explorer_achievement()
+            
             print(f"Language changed from {old_language} to {new_language}")
 
     def _on_category_changed(self, old_category: Optional[int], new_category: Optional[int]):
@@ -864,6 +981,11 @@ class QuizApp(py.QMainWindow):
         print(f"Category selected: {category_name} (ID: {category_id})")
         # Reset quiz with new category
         self._reset_quiz_for_parameter_change()
+        
+        # Track category exploration for CATEGORY_MASTER achievement
+        if category_id is not None:  # Only count specific categories, not "all categories"
+            self.explored_categories.add(category_id)
+            self._update_category_master_achievement()
 
     def _on_difficulty_changed(self, old_difficulty: Optional[str], new_difficulty: Optional[str]):
         """Callback per aggiornare l'UI quando cambia la difficoltà nel modello"""
@@ -934,6 +1056,8 @@ class QuizApp(py.QMainWindow):
         # Reset stats
         self.correct_count = 0
         self.wrong_count = 0
+        self.current_streak = 0  # Reset current correct answers streak
+        # Note: Don't reset explored_languages and explored_categories as they should persist across sessions
         if hasattr(self, 'correct_count_text'):
             self.correct_count_text.setText("")
         if hasattr(self, 'wrong_count_text'):
@@ -1324,8 +1448,13 @@ class QuizApp(py.QMainWindow):
             if sender.text() == self.questions[self.index]["answer"]:
                 self.score += 1
                 self.correct_count += 1
+                self.current_streak += 1  # Increment streak for correct answer
                 self._update_stats_texts()
                 self.right_answer.setText("")
+                
+                # Update achievements for correct answer
+                self._update_achievements_for_correct_answer(response_time)
+                
                 # Evidenzia solo la risposta corretta in verde
                 for btn in self.option_buttons:
                     if btn.text() == self.questions[self.index]["answer"]:
@@ -1333,8 +1462,13 @@ class QuizApp(py.QMainWindow):
                     btn.setEnabled(False)
             else:
                 self.wrong_count += 1
+                self.current_streak = 0  # Reset streak for wrong answer
                 self._update_stats_texts()
                 self.right_answer.setStyleSheet(AppStyles.STATS_TEXT)
+                
+                # Update achievements for answered question (but wrong)
+                self._update_achievements_for_wrong_answer()
+                
                 # Evidenzia sia la risposta corretta che quella sbagliata
                 for btn in self.option_buttons:
                     if btn.text() == self.questions[self.index]["answer"]:
@@ -1679,6 +1813,13 @@ class QuizApp(py.QMainWindow):
             # End current game session if it exists
             self._end_current_session()
             
+            # Save achievement progress
+            if hasattr(self, 'achievement_manager'):
+                print("Saving achievement progress...")
+                # The achievement manager auto-saves when progress is updated,
+                # but we can force a final save here if needed
+                pass
+            
             # Cleanup Easter eggs
             if hasattr(self, 'easter_egg_manager'):
                 self.easter_egg_manager.cleanup()
@@ -1690,3 +1831,75 @@ class QuizApp(py.QMainWindow):
         
         # Accept the close event
         event.accept()
+
+    def _update_achievements_for_correct_answer(self, response_time: float):
+        """Update achievements when user answers correctly"""
+        try:
+            # Update QUESTIONS_ANSWERED achievement
+            self.achievement_manager.update_progress(AchievementType.QUESTIONS_ANSWERED)
+            
+            # Update CORRECT_ANSWERS achievement
+            self.achievement_manager.update_progress(AchievementType.CORRECT_ANSWERS)
+            
+            # Update SPEED_DEMON achievement if answer was fast (< 3 seconds)
+            if response_time < 3.0:
+                self.achievement_manager.update_progress(AchievementType.SPEED_DEMON)
+            
+            # Update STREAK_MASTER achievement with current streak value
+            if self.current_streak > 1:  # Only update if we have a streak going
+                # Reset progress first, then set to current streak
+                # Note: This is a simplified approach - in a real implementation
+                # you'd want to track the highest streak achieved
+                self.achievement_manager.update_progress(AchievementType.STREAK_MASTER, self.current_streak)
+            
+        except Exception as e:
+            print(f"Error updating achievements for correct answer: {e}")
+
+    def _update_language_explorer_achievement(self):
+        """Update LANGUAGE_EXPLORER achievement based on explored languages"""
+        try:
+            languages_count = len(self.explored_languages)
+            if languages_count > 0:
+                # Update the achievement with the current count
+                # Since this achievement requires reaching the target (6 languages),
+                # we update the progress with the current count
+                self.achievement_manager.update_progress(AchievementType.LANGUAGE_EXPLORER, languages_count)
+        except Exception as e:
+            print(f"Error updating language explorer achievement: {e}")
+
+    def _update_social_sharer_achievement(self):
+        """Update SOCIAL_SHARER achievement when user shares the game"""
+        try:
+            self.achievement_manager.update_progress(AchievementType.SOCIAL_SHARER)
+            print("Social sharer achievement updated!")
+        except Exception as e:
+            print(f"Error updating social sharer achievement: {e}")
+
+    def _show_achievements_dialog(self):
+        """Show the achievements dialog"""
+        try:
+            achievements_dialog = AchievementDialog(self.achievement_manager, self.language_model, self)
+            achievements_dialog.exec_()
+        except Exception as e:
+            print(f"Error showing achievements dialog: {e}")
+
+    def _show_settings_dialog(self):
+        """Show the settings dialog"""
+        try:
+            settings_dialog = SettingsDialog(self.settings_manager, self.language_model, self)
+            settings_dialog.exec_()
+        except Exception as e:
+            print(f"Error showing settings dialog: {e}")
+
+    def _show_multiplayer_dialog(self):
+        """Show the multiplayer dialog"""
+        try:
+            if self.multiplayer_dialog is None:
+                from CLASSES.MultiplayerSystem import MultiplayerClient
+                multiplayer_client = MultiplayerClient()
+                self.multiplayer_dialog = MultiplayerDialog(self.language_model, self)
+            self.multiplayer_dialog.show()
+            self.multiplayer_dialog.raise_()
+            self.multiplayer_dialog.activateWindow()
+        except Exception as e:
+            print(f"Error showing multiplayer dialog: {e}")

@@ -495,6 +495,44 @@
       "game_duration_sec": 16.14,
       "category_stats": {},
       "question_details": []
+    },
+    {
+      "session_id": "b2887413-5224-433c-95c9-34382fd57862",
+      "language": "es",
+      "difficulty": "medium",
+      "question_type": "multiple",
+      "category_id": 13,
+      "category_name": "Tutte le categorie",
+      "start_time": "2025-08-30T07:57:34.771869",
+      "end_time": "2025-08-30T07:57:48.264185",
+      "session_completed": true,
+      "total_questions": 0,
+      "correct_questions": 0,
+      "incorrect_questions": 0,
+      "accuracy_percentage": 0.0,
+      "average_response_time_sec": 0.0,
+      "game_duration_sec": 13.49,
+      "category_stats": {},
+      "question_details": []
+    },
+    {
+      "session_id": "bf80318c-9fbe-4740-9f57-e3e50155f8bf",
+      "language": "it",
+      "difficulty": "medium",
+      "question_type": "multiple",
+      "category_id": 13,
+      "category_name": "Tutte le categorie",
+      "start_time": "2025-08-30T07:57:48.268395",
+      "end_time": "2025-08-30T07:57:57.037536",
+      "session_completed": true,
+      "total_questions": 0,
+      "correct_questions": 0,
+      "incorrect_questions": 0,
+      "accuracy_percentage": 0.0,
+      "average_response_time_sec": 0.0,
+      "game_duration_sec": 8.77,
+      "category_stats": {},
+      "question_details": []
     }
   ]
 }
