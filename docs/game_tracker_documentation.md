@@ -9,7 +9,9 @@ Questo documento descrive il sistema di tracking delle statistiche del giocatore
 ### Componenti Principali
 
 #### 1. `QuestionResult` (Dataclass)
+
 Rappresenta il risultato di una singola domanda:
+
 ```python
 @dataclass
 class QuestionResult:

@@ -2,11 +2,16 @@
 # Test per verificare l'internazionalizzazione completa
 
 import sys
+import os
+# Aggiungi il percorso della directory principale al sys.path
+main_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, main_dir)
+
 import PyQt5.QtWidgets as py
 from PyQt5.QtCore import Qt, QTimer
 
 from CONST.constants import AppConstants
-from Language import LanguageModel
+from CLASSES.LanguageModel import LanguageModel
 
 
 class InternationalizationTester(py.QWidget):

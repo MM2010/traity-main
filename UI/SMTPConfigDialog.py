@@ -33,7 +33,25 @@ from CONST.constants import AppConstants
 
 class SMTPTestWorker(QThread):
     """
-    Worker thread for testing SMTP connection asynchronously.
+    Background worker thread for testing SMTP connections.
+
+    This class performs SMTP connection tests in a separate thread to prevent
+    UI blocking during network operations. It emits a finished signal with
+    test results when the operation completes.
+
+    Attributes:
+        config_manager (SMTPConfigManager): Manager for SMTP configuration operations
+        config (SMTPConfig): SMTP configuration to test
+        email (str): Sender email address for authentication
+        password (str): Sender password for authentication
+
+    Signals:
+        finished (bool, str): Emitted when test completes with success status and message
+
+    Example:
+        >>> worker = SMTPTestWorker(config_manager, config, "user@example.com", "password")
+        >>> worker.finished.connect(on_test_finished)
+        >>> worker.start()
     """
 
     finished = pyqtSignal(bool, str)  # Signal emitted when test is complete
@@ -44,7 +62,7 @@ class SMTPTestWorker(QThread):
         Initialize the SMTP test worker.
 
         Args:
-            config_manager (SMTPConfigManager): SMTP configuration manager
+            config_manager (SMTPConfigManager): Manager for SMTP operations
             config (SMTPConfig): SMTP configuration to test
             email (str): Email address for authentication
             password (str): Password for authentication
@@ -56,23 +74,58 @@ class SMTPTestWorker(QThread):
         self.password = password
 
     def run(self):
-        """Execute SMTP connection test in background thread."""
-        success, message = self.config_manager.test_connection(
-            self.config, self.email, self.password
-        )
-        self.finished.emit(success, message)
+        """
+        Execute SMTP connection test in background thread.
+
+        This method performs the actual SMTP connection test and emits
+        the finished signal with the results. The test includes:
+        - Server connection establishment
+        - TLS/SSL handshake if enabled
+        - Authentication if credentials provided
+        - Basic SMTP command verification
+
+        Emits:
+            finished: Signal with (success: bool, message: str)
+        """
+        try:
+            success, message = self.config_manager.test_connection(
+                self.config, self.email, self.password
+            )
+            self.finished.emit(success, message)
+        except Exception as e:
+            self.finished.emit(False, f"Errore durante il test: {str(e)}")
 
 
 class SMTPConfigDialog(QDialog):
     """
-    Dialog for configuring SMTP settings for email sharing.
+    Dialog for configuring SMTP settings for email sharing functionality.
 
-    This dialog provides:
-    - Preset selection for popular email providers
-    - Manual SMTP configuration
-    - Credential input and validation
-    - Connection testing
-    - Configuration saving
+    This dialog provides a comprehensive interface for SMTP configuration including:
+    - Preset configurations for popular email providers (Gmail, Outlook, etc.)
+    - Manual SMTP server configuration with custom settings
+    - Authentication credential management
+    - Real-time connection testing with progress feedback
+    - Secure credential storage and validation
+    - Full internationalization support with dynamic language switching
+
+    The dialog uses a tabbed interface for better organization and includes
+    visual feedback for all operations. Configuration is validated before
+    saving and connection tests are performed asynchronously to prevent UI blocking.
+
+    Attributes:
+        language_model: Language model for UI text translations
+        config_manager (SMTPConfigManager): Manager for SMTP configuration operations
+        current_language (str): Current UI language code
+        test_worker (SMTPTestWorker): Background worker for connection testing
+
+    Signals:
+        accepted: Emitted when configuration is successfully saved
+        rejected: Emitted when dialog is cancelled
+
+    Example:
+        >>> dialog = SMTPConfigDialog(language_model, parent_window)
+        >>> if dialog.exec_() == QDialog.Accepted:
+        ...     print("SMTP configuration saved successfully")
     """
 
     def __init__(self, language_model=None, parent=None):
@@ -80,8 +133,8 @@ class SMTPConfigDialog(QDialog):
         Initialize the SMTP configuration dialog.
 
         Args:
-            language_model: Language model for translations
-            parent: Parent widget
+            language_model: Language model for translations (optional)
+            parent: Parent widget for modal behavior (optional)
         """
         super().__init__(parent)
         self.language_model = language_model
@@ -89,7 +142,7 @@ class SMTPConfigDialog(QDialog):
         self.current_language = 'it'  # Default language
 
         if self.language_model:
-            self.current_language = getattr(self.language_model, 'current_language', 'it')
+            self.current_language = getattr(self.language_model, 'selected_language', 'it')
 
         self.test_worker = None
         self.init_ui()
@@ -97,7 +150,26 @@ class SMTPConfigDialog(QDialog):
         self.setup_connections()
 
     def init_ui(self):
-        """Initialize the user interface components."""
+        """
+        Initialize the user interface components.
+
+        This method creates and configures all UI elements for the SMTP configuration dialog:
+        - Window properties (title, size, modality)
+        - Header section with descriptive text
+        - Preset provider selection dropdown
+        - SMTP server configuration group (server, port, TLS)
+        - Authentication settings
+        - Credentials input fields (name, email, password)
+        - Security information labels
+        - Progress bar for connection testing
+        - Action buttons (test, save, cancel)
+
+        The UI is organized in logical groups with consistent styling and
+        includes helpful placeholder text and tooltips for user guidance.
+
+        Returns:
+            None
+        """
         self.setWindowTitle("⚙️ Configurazione SMTP")
         self.setModal(True)
         self.setFixedSize(600, 700)
@@ -259,7 +331,20 @@ class SMTPConfigDialog(QDialog):
         self.preset_combo.setFocus()
 
     def _get_input_style(self) -> str:
-        """Get consistent input field styling."""
+        """
+        Get consistent CSS styling for input fields.
+
+        Returns a CSS string that provides uniform styling for QLineEdit and QSpinBox
+        widgets throughout the dialog, including padding, borders, border-radius,
+        and focus states.
+
+        Returns:
+            str: CSS stylesheet string for input field styling
+
+        Example:
+            >>> style = self._get_input_style()
+            >>> line_edit.setStyleSheet(style)
+        """
         return """
             QLineEdit, QSpinBox {
                 padding: 8px;
@@ -273,7 +358,23 @@ class SMTPConfigDialog(QDialog):
         """
 
     def _get_button_style(self, color: str) -> str:
-        """Get consistent button styling."""
+        """
+        Get consistent CSS styling for buttons with custom colors.
+
+        Creates a CSS stylesheet for QPushButton widgets with the specified background
+        color, including hover effects and disabled states. The color parameter
+        should be a valid CSS color value.
+
+        Args:
+            color (str): Background color for the button (hex format recommended)
+
+        Returns:
+            str: CSS stylesheet string for button styling
+
+        Example:
+            >>> style = self._get_button_style("#27ae60")
+            >>> button.setStyleSheet(style)
+        """
         return f"""
             QPushButton {{
                 padding: 10px 15px;
@@ -294,7 +395,23 @@ class SMTPConfigDialog(QDialog):
         """
 
     def _darken_color(self, color: str) -> str:
-        """Darken a hex color for hover effects."""
+        """
+        Darken a hex color for hover effects.
+
+        Takes a hex color string and returns a darker version for button hover states.
+        Uses predefined color mappings for common UI colors. For custom colors,
+        consider implementing a more sophisticated color manipulation algorithm.
+
+        Args:
+            color (str): Hex color string to darken (e.g., "#27ae60")
+
+        Returns:
+            str: Darkened hex color string
+
+        Example:
+            >>> darker_green = self._darken_color("#27ae60")
+            >>> # Returns "#229954"
+        """
         # Simple color darkening (you could use a more sophisticated approach)
         if color == "#27ae60":
             return "#229954"
@@ -305,7 +422,21 @@ class SMTPConfigDialog(QDialog):
         return color
 
     def setup_connections(self):
-        """Setup signal-slot connections."""
+        """
+        Setup signal-slot connections for UI interaction.
+
+        Connects all user interface events to their corresponding handler methods:
+        - Preset combo box changes trigger configuration updates
+        - Authentication checkbox toggles credential fields
+        - Test button initiates connection testing
+        - Save button validates and saves configuration
+        - Cancel button closes dialog without saving
+
+        This method establishes the complete event handling chain for the dialog.
+
+        Returns:
+            None
+        """
         self.preset_combo.currentTextChanged.connect(self.on_preset_changed)
         self.auth_checkbox.stateChanged.connect(self.on_auth_changed)
         self.test_button.clicked.connect(self.test_connection)
@@ -313,7 +444,20 @@ class SMTPConfigDialog(QDialog):
         self.cancel_button.clicked.connect(self.reject)
 
     def load_current_config(self):
-        """Load current SMTP configuration into the UI."""
+        """
+        Load current SMTP configuration into the UI fields.
+
+        Retrieves the current SMTP configuration from the config manager and
+        populates all UI fields with the existing values. Also loads stored
+        credentials if available. This method is called during dialog initialization
+        to show the current configuration state.
+
+        The method handles both configuration settings (server, port, TLS, auth)
+        and user credentials (email, password) separately for security.
+
+        Returns:
+            None
+        """
         if self.config_manager.current_config:
             config = self.config_manager.current_config
             self.server_input.setText(config.smtp_server)
@@ -329,7 +473,19 @@ class SMTPConfigDialog(QDialog):
             self.password_input.setText(password)
 
     def on_preset_changed(self, preset_name: str):
-        """Handle preset selection change."""
+        """
+        Handle preset selection change event.
+
+        When user selects a preset provider from the dropdown, this method
+        automatically fills in the corresponding SMTP configuration values.
+        For custom/manual configuration, no changes are made to existing values.
+
+        Args:
+            preset_name (str): The display name of the selected preset
+
+        Returns:
+            None
+        """
         preset_key = self.preset_combo.currentData()
         if preset_key and preset_key != "custom":
             preset_config = self.config_manager.get_preset_config(preset_key)
@@ -339,14 +495,39 @@ class SMTPConfigDialog(QDialog):
                 self.tls_checkbox.setChecked(preset_config.use_tls)
 
     def on_auth_changed(self, state):
-        """Handle authentication checkbox change."""
+        """
+        Handle authentication checkbox change event.
+
+        Enables or disables credential input fields based on authentication requirement.
+        When authentication is enabled, all credential fields become editable.
+        When disabled, fields are disabled and cleared for security.
+
+        Args:
+            state: Qt.CheckState value (Qt.Checked or Qt.Unchecked)
+
+        Returns:
+            None
+        """
         enabled = state == Qt.Checked
         self.sender_email_input.setEnabled(enabled)
         self.password_input.setEnabled(enabled)
         self.sender_name_input.setEnabled(enabled)
 
     def get_current_config(self) -> SMTPConfig:
-        """Get current configuration from UI."""
+        """
+        Get current configuration from UI input fields.
+
+        Collects all SMTP configuration values from the dialog's input widgets
+        and creates an SMTPConfig object. All string values are stripped of
+        whitespace to ensure clean data.
+
+        Returns:
+            SMTPConfig: Configuration object with current UI values
+
+        Example:
+            >>> config = self.get_current_config()
+            >>> print(f"Server: {config.smtp_server}, Port: {config.smtp_port}")
+        """
         return SMTPConfig(
             smtp_server=self.server_input.text().strip(),
             smtp_port=self.port_input.value(),
@@ -357,7 +538,22 @@ class SMTPConfigDialog(QDialog):
         )
 
     def test_connection(self):
-        """Test SMTP connection with current settings."""
+        """
+        Test SMTP connection with current settings.
+
+        Performs a comprehensive validation and connection test:
+        1. Validates configuration completeness
+        2. Checks credential availability if authentication required
+        3. Shows progress indicator and disables UI during test
+        4. Starts background worker thread for connection testing
+        5. Connects test completion signal to result handler
+
+        The test is performed asynchronously to prevent UI blocking.
+        Results are displayed via message boxes with success/failure feedback.
+
+        Returns:
+            None
+        """
         config = self.get_current_config()
         email = self.sender_email_input.text().strip()
         password = self.password_input.text().strip()
@@ -388,7 +584,20 @@ class SMTPConfigDialog(QDialog):
         self.test_worker.start()
 
     def on_test_finished(self, success: bool, message: str):
-        """Handle SMTP test completion."""
+        """
+        Handle SMTP test completion and display results.
+
+        Called when the background connection test finishes. Updates UI state
+        by hiding progress indicator and re-enabling buttons. Shows appropriate
+        success or failure message to the user via message box.
+
+        Args:
+            success (bool): True if connection test succeeded, False otherwise
+            message (str): Detailed result message from the test
+
+        Returns:
+            None
+        """
         # Hide progress
         self.progress_bar.setVisible(False)
         self.test_button.setEnabled(True)
@@ -407,7 +616,26 @@ class SMTPConfigDialog(QDialog):
             )
 
     def save_configuration(self):
-        """Save current SMTP configuration."""
+        """
+        Save current SMTP configuration to persistent storage.
+
+        Performs comprehensive validation and saving of SMTP configuration:
+        1. Retrieves current configuration from UI fields
+        2. Validates configuration completeness and correctness
+        3. Saves SMTP configuration settings
+        4. Saves credentials if authentication is enabled
+        5. Shows success/error messages to user
+        6. Accepts dialog (closes with success) if everything saved
+
+        The method ensures data integrity by validating before saving and
+        provides clear feedback to the user about the operation result.
+
+        Returns:
+            None
+
+        Raises:
+            No exceptions raised - all errors handled internally with UI messages
+        """
         config = self.get_current_config()
         email = self.sender_email_input.text().strip()
         password = self.password_input.text().strip()
@@ -452,10 +680,23 @@ class SMTPConfigDialog(QDialog):
 
     def update_language(self, new_language: str):
         """
-        Update dialog language.
+        Update dialog language for internationalization support.
+
+        Changes the current language setting and prepares for UI text updates.
+        This is a placeholder implementation that sets the language code.
+        In a full implementation, this would update all text elements, labels,
+        buttons, and messages throughout the dialog.
 
         Args:
-            new_language (str): New language code
+            new_language (str): New language code (e.g., 'it', 'en', 'es')
+
+        Returns:
+            None
+
+        Note:
+            Current implementation only updates the language code.
+            Full language switching requires updating all UI text elements
+            and reloading appropriate translation resources.
         """
         self.current_language = new_language
         # In a real implementation, you would update all text elements

@@ -10,7 +10,10 @@ import sys
 import os
 import time
 import psutil
-sys.path.append(os.path.dirname(__file__))
+
+# Aggiungi il percorso della directory principale al sys.path
+main_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, main_dir)
 
 from UTILS.thread_utils import ThreadPoolOptimizer
 from CONST.constants import AppConstants

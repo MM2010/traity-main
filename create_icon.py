@@ -1,12 +1,46 @@
-# create_icon.py
-# Script per creare un'icona semplice per l'applicazione
+#!/usr/bin/env python3
+"""
+create_icon.py - Application Icon Generator
+
+This script generates a simple circular icon for the Traity Quiz application.
+The icon features a blue circle background with a white "Q" (for Quiz) in the center.
+
+Features:
+- Creates a 64x64 pixel PNG icon
+- Blue circular background (#3498db)
+- White "Q" text in Arial Bold font
+- Anti-aliased rendering for smooth edges
+- Automatic assets directory creation
+- Saves icon to assets/quiz_icon.png
+
+Usage:
+    python create_icon.py
+
+Requirements:
+    - PyQt5: For GUI and graphics operations
+    - The script will create the assets directory if it doesn't exist
+
+The generated icon is used as the application window icon and can be
+referenced in the main application code.
+"""
 
 from PyQt5.QtGui import QPainter, QPixmap, QFont, QBrush, QColor
 from PyQt5.QtCore import Qt
 import os
 
 def create_app_icon():
-    """Crea un'icona semplice per l'applicazione"""
+    """
+    Create a simple circular icon for the Traity Quiz application.
+    
+    Generates a 64x64 pixel PNG icon with:
+    - Blue circular background
+    - White "Q" text centered
+    - Anti-aliased rendering
+    - Saved to assets/quiz_icon.png
+    
+    The function creates the assets directory if it doesn't exist
+    and provides feedback on successful icon creation.
+    """
     # Crea un pixmap 64x64
     pixmap = QPixmap(64, 64)
     pixmap.fill(Qt.transparent)
